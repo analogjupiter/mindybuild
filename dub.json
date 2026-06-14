@@ -1,0 +1,22 @@
+{
+	"name": "mindybuild",
+	"description": "An open-source build configuration and build system.",
+
+	"copyright": "Copyright © 2026  Mindy Batek (0xEAB)",
+	"license": "MPL-2.0",
+
+	"targetPath": "bin",
+
+	"configurations": [
+		{
+			"name": "app",
+			"targetName": "mindybuild",
+			"targetType": "executable",
+			"versions": ["MindybuildCommandLineApp"]
+		},
+		{
+			"name": "library",
+			"targetType": "library"
+		}
+	]
+}
