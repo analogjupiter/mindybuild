@@ -12,6 +12,7 @@
 			"name": "app",
 			"targetName": "mindybuild",
 			"targetType": "executable",
+			"buildRequirements": ["allowWarnings", "requireContracts"],
 			"versions": ["MindybuildCommandLineApp"]
 		},
 		{
