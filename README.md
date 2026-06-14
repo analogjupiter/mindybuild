@@ -1,6 +1,6 @@
-# mindy-build
+# mindybuild
 
-**mindy-build** is an open-source build configuration and build system.
+**mindybuild** is an open-source build configuration and build system.
 
 ## Notable features
 
