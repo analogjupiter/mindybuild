@@ -40,7 +40,8 @@ sourceFiles="\
 	src/mindybuild/common.d \
 	src/mindybuild/annabel.d \
 	src/mindybuild/configure.d \
-	src/mindybuild/make.d"
+	src/mindybuild/make.d \
+	src/mindybuild/cli.d"
 
 if [ -n "${DC+x}" ]; then
 	use_dc

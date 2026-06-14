@@ -8,19 +8,5 @@
  +/
 /++
 	Common library of mindybuild.
-
-	This module also contains the entry point for the CLI app.
  +/
 module mindybuild.common;
-
-version (MindybuildCommandLineApp) {
-	mixin MindybuildCommandLineApp!();
-}
-
-mixin template MindybuildCommandLineApp() {
-	private int main() {
-		import mindybuild.common;
-		
-		return 1;
-	}
-}
