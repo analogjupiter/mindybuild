@@ -257,6 +257,12 @@ struct Lexer {
 					if (data.length < 3) {
 						return -1;
 					}
+
+					// EOL?
+					if (c == '\xE2' && data[1] == '\x80' && (data[2] == '\xA8' || data[2] == '\xA9')) {
+						return idx;
+					}
+
 					data = data[3 .. $];
 					idx += 3;
 					continue;
