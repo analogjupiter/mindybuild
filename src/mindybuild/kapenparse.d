@@ -704,6 +704,11 @@ private bool isEmptyOrEOF(ref const(Lexer) lexer) @safe pure nothrow @nogc {
 	return (lexer.front.type == Token.Type.eof);
 }
 
+/+
+	Usage:
+		ldc2 --d-version=KapenparseModuleFinderApp -run src/mindybuild/kapenparse.d -- <files>
+		ldc2 --d-version=KapenparseModuleFinderApp --d-debug=KapenparseListTokens -run src/mindybuild/kapenparse.d -- <files>
+ +/
 version (KapenparseModuleFinderApp) {
 	private int main(string[] args) @system {
 		import std.file;
@@ -717,13 +722,29 @@ version (KapenparseModuleFinderApp) {
 		}
 
 		foreach (file; files) {
-			const sourceCode = readText(file);
+			string sourceCode;
+
+			try {
+				sourceCode = readText(file);
+			}
+			catch (Exception ex) {
+				stderr.writeln(file, ": ", ex.message);
+			}
+
+			debug(KapenparseListTokens) {
+				stderr.writeln("# BEGIN TOKENS OF ", file);
+				foreach (token; Lexer(sourceCode)) {
+					stderr.writeln(token);
+				}
+				stderr.writeln("# END TOKENS OF ", file);
+			}
+
 			const(str)[] moduleName;
 			try {
 				moduleName = parseModuleName(sourceCode);
 			}
 			catch (ParserException ex) {
-				stderr.writeln(ex.message);
+				stderr.writeln(file, ": ", ex.message);
 				continue;
 			}
 
