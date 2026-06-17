@@ -88,7 +88,7 @@ const(str)[] parseModuleName(str sourceCode) @safe pure {
 		lexer.popFront();
 	}
 
-	throw new ParserException("Unexpected end of file.");
+	return null;
 }
 
 final class ParserException : Exception {
