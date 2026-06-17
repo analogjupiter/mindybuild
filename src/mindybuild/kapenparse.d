@@ -603,7 +603,6 @@ version (KapenparseModuleFinderApp) {
 		}
 
 		foreach (file; files) {
-			stdout.write(file, ": ");
 			const sourceCode = readText(file);
 			const(str)[] moduleName;
 			try {
