@@ -300,6 +300,20 @@ struct Lexer {
 			case "module":
 				return this.makeToken(Type.module_, length);
 
+			case "import":
+				return this.makeToken(Type.somethingElse, length);
+
+			case "alias":
+			case "class":
+			case "enum":
+			case "package":
+			case "private":
+			case "protected":
+			case "public":
+			case "struct":
+			case "void":
+				goto case "import";
+
 			default:
 				break;
 			}
