@@ -42,7 +42,7 @@ const(str)[] parseModuleName(str sourceCode) @safe pure {
 			}
 
 			while (true) {
-				lexer.popWhitespace();
+				lexer.popWhitespaceAndComments();
 				if (lexer.isEmptyOrEOF) {
 					throw new ParserException("Unexpected end of file; identifier expected.");
 				}
@@ -54,7 +54,7 @@ const(str)[] parseModuleName(str sourceCode) @safe pure {
 				result ~= lexer.front.data;
 
 				lexer.popFront();
-				lexer.popWhitespace();
+				lexer.popWhitespaceAndComments();
 				if (lexer.isEmptyOrEOF) {
 					throw new ParserException("Unexpected end of file; dot, semicolon or edition identifier expected.");
 				}
@@ -66,7 +66,7 @@ const(str)[] parseModuleName(str sourceCode) @safe pure {
 				// edition identifier?
 				if (lexer.front.type == Type.literalInteger) {
 					lexer.popFront();
-					lexer.popWhitespace();
+					lexer.popWhitespaceAndComments();
 					if (lexer.isEmptyOrEOF) {
 						throw new ParserException("Unexpected end of file; semicolon expected.");
 					}
@@ -648,9 +648,13 @@ struct Lexer {
 	}
 }
 
-private void popWhitespace(ref Lexer lexer) @safe pure nothrow @nogc {
+private void popWhitespaceAndComments(ref Lexer lexer) @safe pure nothrow @nogc {
 	while (!lexer.empty) {
-		if (lexer._front.type != Token.Type.whitespace) {
+		const stop = !(
+			lexer._front.type == Token.Type.whitespace
+				|| lexer._front.type == Token.Type.comment
+		);
+		if (stop) {
 			return;
 		}
 
