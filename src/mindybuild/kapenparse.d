@@ -56,15 +56,29 @@ const(str)[] parseModuleName(str sourceCode) @safe pure {
 				lexer.popFront();
 				lexer.popWhitespace();
 				if (lexer.isEmptyOrEOF) {
-					throw new ParserException("Unexpected end of file; dot or semicolon expected.");
+					throw new ParserException("Unexpected end of file; dot, semicolon or edition identifier expected.");
 				}
 
 				if (lexer.front.type == Type.semicolon) {
 					return result[];
 				}
 
+				// edition identifier?
+				if (lexer.front.type == Type.literalInteger) {
+					lexer.popFront();
+					lexer.popWhitespace();
+					if (lexer.isEmptyOrEOF) {
+						throw new ParserException("Unexpected end of file; semicolon expected.");
+					}
+					if (lexer.front.type != Type.semicolon) {
+						throw new ParserException("Unexpected token; semicolon expected.");
+					}
+
+					return result[];
+				}
+
 				if (lexer.front.type != Type.dot) {
-					throw new ParserException("Unexpected token; dot or semicolon expected.");
+					throw new ParserException("Unexpected token; dot, semicolon or edition identifier expected.");
 				}
 
 				lexer.popFront();
@@ -98,6 +112,7 @@ struct Token {
 		braceParenOpen = '(',
 		braceParenClose = ')',
 		at = '@',
+		literalInteger = '1',
 		literalString = '"',
 		somethingElse = '?',
 		eol = '\n',
@@ -171,6 +186,9 @@ struct Lexer {
 			case 'A': .. case 'Z':
 			case '_':
 				return this.lexIdentifierOrKeyword();
+
+			case '0': .. case '9':
+				return this.lexLiteralInteger();
 
 			case '.':
 				return this.makeToken(Type.dot, 1);
@@ -433,6 +451,50 @@ struct Lexer {
 			}
 
 			return this.makeToken(Type.eol, length);
+		}
+
+		Token lexLiteralInteger() {
+			import std.ascii : isDigit, isHexDigit;
+
+			if (_input[0] == '0') {
+				if (_input.length < 2) {
+					return this.makeToken(Type.literalInteger, 1);
+				}
+
+				if (_input[1] == 'x') {
+					foreach (idx, c; _input[2 .. $]) {
+						const isOther = !(c.isHexDigit || c == '_');
+						if (isOther) {
+							return this.makeToken(Type.literalInteger, 2 + idx);
+						}
+					}
+				}
+				if (_input[1] == 'b') {
+					foreach (idx, c; _input[2 .. $]) {
+						const isOther = !(c == '1' || c == '0' || c == '_');
+						if (isOther) {
+							return this.makeToken(Type.literalInteger, 2 + idx);
+						}
+					}
+				}
+				if (_input[1] == 'o') {
+					foreach (idx, c; _input[2 .. $]) {
+						const isOther = !((c >= '0' && c <= '9') || c == '_');
+						if (isOther) {
+							return this.makeToken(Type.literalInteger, 2 + idx);
+						}
+					}
+				}
+			}
+
+			foreach (idx, c; _input) {
+				const isOther = !(c.isDigit || c == '_');
+				if (isOther) {
+					return this.makeToken(Type.literalInteger, idx);
+				}
+			}
+
+			return this.makeToken(Type.literalInteger, _input.length);
 		}
 
 		Token lexLiteralString() {
