@@ -88,12 +88,17 @@ struct Token {
 		invalid = '\0',
 		comment = '/',
 		whitespace = ' ',
+		deprecated_ = 'd',
 		module_ = 'm',
 		indentifier = 'i',
 		dot = '.',
 		colon = ':',
 		semicolon = ';',
 		hashBangLine = '#',
+		braceParenOpen = '(',
+		braceParenClose = ')',
+		at = '@',
+		literalString = '"',
 		somethingElse = '?',
 		eol = '\n',
 		eof = char.max,
@@ -181,6 +186,17 @@ struct Lexer {
 
 			case '#':
 				return this.lexHash();
+
+			case '@':
+				return this.makeToken(Type.at, 1);
+
+			case '(':
+				return this.makeToken(Type.braceParenOpen, 1);
+			case ')':
+				return this.makeToken(Type.braceParenClose, 1);
+
+			case '"':
+				return this.lexLiteralString();
 
 			case '\\':
 				return this.lexIdentifierOrKeyword();
@@ -273,6 +289,10 @@ struct Lexer {
 
 			if (length == 0) {
 				return this.makeToken(Type.somethingElse, 1);
+			}
+
+			if (_input[1] == '"') {
+				return this.lexLiteralString();
 			}
 
 			const id = _input[0 .. length];
@@ -401,6 +421,94 @@ struct Lexer {
 			return this.makeToken(Type.eol, length);
 		}
 
+		Token lexLiteralString() {
+			static ptrdiff_t scanForClosingDoubleQuote(str input) {
+				bool prevWasBackslash = false;
+				foreach (idx, c; input) {
+					if (prevWasBackslash) {
+						prevWasBackslash = false;
+						continue;
+					}
+					else {
+						if ((c == '"') && !prevWasBackslash) {
+							return idx;
+						}
+
+						prevWasBackslash = (c == '\\');
+					}
+				}
+
+				return -1;
+			}
+
+			static ptrdiff_t scanForClosingDoubleQuoteR(str input) {
+				foreach (idx, c; input) {
+					if (c == '"') {
+						return idx;
+					}
+				}
+
+				return -1;
+			}
+
+			static ptrdiff_t scanForClosingBacktick(str input) {
+				foreach (idx, c; input) {
+					if (c == '`') {
+						return idx;
+					}
+				}
+
+				return -1;
+			}
+
+			static ptrdiff_t scanForClosingCurlyBrace(str input) {
+				size_t level = 1;
+				foreach (idx, c; input) {
+					if (c == '{') {
+						++level;
+					}
+					if (c == '}') {
+						--level;
+						if (level == 0) {
+							return idx;
+						}
+					}
+				}
+
+				return -1;
+			}
+
+			if (_input.length < 2) {
+				return this.makeToken(Type.invalid, _input.length);
+			}
+
+			if (_input[0] == '"') {
+				const idxEnd = scanForClosingDoubleQuote(_input[1 .. $]);
+				const length = (idxEnd < 0) ? _input.length : (1 + idxEnd + 1);
+				return this.makeToken(Type.literalString, length);
+			}
+
+			if (_input[0] == 'r' && _input[1] == '"') {
+				const idxEnd = scanForClosingDoubleQuoteR(_input[2 .. $]);
+				const length = (idxEnd < 0) ? _input.length : (2 + idxEnd + 1);
+				return this.makeToken(Type.literalString, length);
+			}
+
+			if (_input[0] == '`') {
+				const idxEnd = scanForClosingBacktick(_input[2 .. $]);
+				const length = (idxEnd < 0) ? _input.length : (2 + idxEnd + 1);
+				return this.makeToken(Type.literalString, length);
+			}
+
+			if (_input[0] == 'q' && _input[1] == '{') {
+				const idxEnd = scanForClosingCurlyBrace(_input[2 .. $]);
+				const length = (idxEnd < 0) ? _input.length : (2 + idxEnd + 1);
+				return this.makeToken(Type.literalString, length);
+			}
+
+			return this.makeToken(Type.invalid, _input.length);
+		}
+
 		Token lexHash() {
 			if (_input.length < 2) {
 				return this.makeToken(Type.invalid, 1);
@@ -487,16 +595,26 @@ version (KapenparseModuleFinderApp) {
 		import std.file;
 		import std.stdio;
 
-		if (args.length < 2) {
+		string[] files = (args.length < 2) ? null : args[1 .. $];
+
+		if (files.length < 1) {
 			stderr.writeln("Error: No input files provided.");
 			return 1;
 		}
 
-		foreach (file; args[1 .. $]) {
+		foreach (file; files) {
 			stdout.write(file, ": ");
 			const sourceCode = readText(file);
-			const module_ = parseModuleName(sourceCode);
-			foreach (idx, id; module_) {
+			const(str)[] moduleName;
+			try {
+				moduleName = parseModuleName(sourceCode);
+			}
+			catch (ParserException ex) {
+				stderr.writeln(ex.message);
+				continue;
+			}
+
+			foreach (idx, id; moduleName) {
 				if (idx == 0) {
 					stdout.write(id);
 					continue;
