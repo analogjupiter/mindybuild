@@ -686,6 +686,7 @@ private void popWhitespaceAndComments(ref Lexer lexer) @safe pure nothrow @nogc 
 		const stop = !(
 			lexer._front.type == Token.Type.whitespace
 				|| lexer._front.type == Token.Type.comment
+				|| lexer._front.type == Token.Type.eol
 		);
 		if (stop) {
 			return;
