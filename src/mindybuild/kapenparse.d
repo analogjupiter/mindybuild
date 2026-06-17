@@ -124,7 +124,7 @@ struct Token {
 }
 
 struct Lexer {
-	import std.uni;
+	import std.ascii;
 
 	private {
 		alias Type = Token.Type;
@@ -245,6 +245,35 @@ struct Lexer {
 					continue;
 				}
 
+				if ((ubyte(c) & ubyte(0b1111_0000)) == 0b1111_0000) {
+					if (data.length < 4) {
+						return -1;
+					}
+					data = data[4 .. $];
+					idx += 4;
+					continue;
+				}
+				if ((ubyte(c) & ubyte(0b1110_0000)) == 0b1110_0000) {
+					if (data.length < 3) {
+						return -1;
+					}
+					data = data[3 .. $];
+					idx += 3;
+					continue;
+				}
+				if ((ubyte(c) & ubyte(0b1100_0000)) == 0b1100_0000) {
+					if (data.length < 2) {
+						return -1;
+					}
+					data = data[2 .. $];
+					idx += 2;
+					continue;
+				}
+				if ((ubyte(c) & ubyte(0b1000_0000)) == 0b1000_0000) {
+					// bad unicode
+					return -1;
+				}
+
 				const bool isEnd = !(
 					c.isAlphaNum || c == '_'
 				);
@@ -261,8 +290,6 @@ struct Lexer {
 		}
 
 		ptrdiff_t scanUniversalCharacterName(size_t offset) {
-			import std.ascii : isHexDigit;
-
 			const data = _input[offset .. $];
 			if (data.length < 2) {
 				return -1;
