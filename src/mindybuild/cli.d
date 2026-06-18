@@ -61,6 +61,10 @@ template runMindybuildCommandLineApp() {
 		case "--get-module-name":
 			return runGetModuleName(stdout, stderr, args[1 .. $]);
 
+		case "lex-bel":
+		case "--lex-bel":
+			return runLexBEL(stdout, stderr, args[1 .. $]);
+
 		case "make":
 		case "--make":
 		case "-m":
@@ -176,6 +180,45 @@ template runMindybuildCommandLineApp() {
 					stdout.write(".", id);
 				}
 				stdout.writeln();
+			}
+
+			return (status == Status.success) ? 0 : 1;
+		}
+
+		int runLexBEL(File stdout, File stderr, string[] args) {
+			import mindybuild.annabel;
+			import std.file : readText;
+
+			if (args.length == 0) {
+				stderr.writeErrorNoInputfiles();
+				return 1;
+			}
+
+			if (args.length > 1) {
+				stderr.writeln("Too many arguments.");
+			}
+
+			const file = args[0];
+
+			string sourceCode;
+			try {
+				sourceCode = readText(file);
+			}
+			catch (Exception ex) {
+				stderr.writeln(file, ": ", ex.msg);
+			}
+
+			auto status = Status.success;
+			foreach (token; Lexer(sourceCode, file)) {
+				if (token.type == Token.Type.invalid) {
+					status = Status.error;
+				}
+				else if (token.type == Token.Type.invalidCharset) {
+					status = Status.error;
+				}
+
+				const(char)[][1] tokData = [token.data];
+				stdout.writefln!"%s,%s,%s,%(%s%)"(token.location.file, token.location.byteOffset, token.type, tokData);
 			}
 
 			return (status == Status.success) ? 0 : 1;

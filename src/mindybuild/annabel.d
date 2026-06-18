@@ -51,10 +51,10 @@ struct Token {
 
 	///
 	Type type;
-	
+
 	///
 	str data;
-	
+
 	///
 	Location location;
 }
@@ -104,7 +104,7 @@ struct Lexer {
 	private {
 		void loadFrontInitial() {
 			const charset = detectAndSkipBOM();
-			if (charset.isOK) {
+			if (!charset.isOK) {
 				_front = this.makeToken(Type.invalidCharset, _input.length);
 				return;
 			}
@@ -292,6 +292,7 @@ struct Lexer {
 
 		Status detectAndSkipBOM() {
 			const bom = scanBOM(_input);
+
 			if (bom == BOM.utf8) {
 				_input = _input[0 .. bomData!(BOM.utf8).length];
 				return Status.success;

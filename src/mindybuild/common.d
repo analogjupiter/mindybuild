@@ -22,9 +22,16 @@ enum Status : bool {
 	success = true,
 }
 
-///
-bool isOK(const Status status) @safe pure nothrow @nogc {
-	return (status == Status.success);
+pragma(inline, true) @safe pure nothrow @nogc {
+	///
+	bool isOK(const Status status) @safe pure nothrow @nogc {
+		return (status == Status.success);
+	}
+
+	///
+	bool isError(const Status status) @safe pure nothrow @nogc {
+		return !isOK(status);
+	}
 }
 
 ///
