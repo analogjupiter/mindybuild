@@ -223,6 +223,7 @@ struct Lexer {
 				return this.makeToken(Type.braceParenClose, 1);
 
 			case '"':
+			case '`':
 				return this.lexLiteralString();
 
 			case '\\':
