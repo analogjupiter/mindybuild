@@ -279,24 +279,7 @@ struct Lexer {
 		}
 
 		Token lexWhitespace() {
-			static ptrdiff_t findNonWhitespace(str data) {
-				foreach (idx, c; data) {
-					switch (c) {
-					case '\x20':
-					case '\x09':
-					case '\x0B':
-					case '\x0C':
-						continue;
-
-					default:
-						return idx;
-					}
-				}
-
-				return -1;
-			}
-
-			const idx = findNonWhitespace(_input[1 .. $]);
+			const idx = scanWhitespace(_input[1 .. $]);
 			const length = (idx < 0) ? _input.length : 1 + idx;
 			return this.makeToken(Type.whitespace, length);
 		}

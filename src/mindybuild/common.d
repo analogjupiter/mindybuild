@@ -328,6 +328,24 @@ ptrdiff_t scanNestableComment(in str input) @safe pure nothrow @nogc {
 }
 
 ///
+ptrdiff_t scanWhitespace(in str input) @safe pure nothrow @nogc {
+	foreach (idx, c; input) {
+		switch (c) {
+		case '\x20':
+		case '\x09':
+		case '\x0B':
+		case '\x0C':
+			continue;
+
+		default:
+			return idx;
+		}
+	}
+
+	return -1;
+}
+
+///
 struct Location {
 	///
 	size_t byteOffset;
