@@ -253,6 +253,80 @@ ptrdiff_t scanUniversalCharacterName(in str input) @safe pure nothrow @nogc {
 	return -1;
 }
 
+ptrdiff_t scanLineComment(in str input) @safe pure nothrow @nogc {
+	if (input.length < 2 || input[0 .. 2] != "//") {
+		return -1;
+	}
+
+	if (input.length == 2) {
+		return 2;
+	}
+
+	const idxEOL = input.indexOfNextEOL();
+	const length = (idxEOL < 0) ? input.length : idxEOL;
+	return length;
+}
+
+ptrdiff_t scanAsteriskComment(in str input) @safe pure nothrow @nogc {
+	if (input.length < 2 || input[0 .. 2] != "/*") {
+		return -1;
+	}
+
+	if (input.length == 2) {
+		return 2;
+	}
+
+	bool prevWasAsterisk = false;
+	foreach (idx, c; input[2 .. $]) {
+		if (prevWasAsterisk && (c == '/')) {
+			return 2 + idx + 1;
+		}
+		prevWasAsterisk = (c == '*');
+	}
+
+	return input.length;
+}
+
+///
+ptrdiff_t scanNestableComment(in str input) @safe pure nothrow @nogc {
+	if (input.length < 2 || input[0 .. 2] != "/+") {
+		return -1;
+	}
+
+	if (input.length == 2) {
+		return 2;
+	}
+
+	size_t level = 1;
+
+	bool prevWasPlus = false;
+	bool prevWasSlash = false;
+	foreach (idx, c; input[2 .. $]) {
+		bool isSlash = (c == '/');
+		bool isPlus = false;
+		if (prevWasPlus && isSlash) {
+			--level;
+			isSlash = false;
+		}
+		else {
+			isPlus = (c == '+');
+			if (prevWasSlash && isPlus) {
+				++level;
+				isPlus = false;
+			}
+		}
+
+		if (level == 0) {
+			return 2 + idx + 1;
+		}
+
+		prevWasPlus = isPlus;
+		prevWasSlash = isSlash;
+	}
+
+	return input.length;
+}
+
 ///
 struct Location {
 	///

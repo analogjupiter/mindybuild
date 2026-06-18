@@ -299,11 +299,19 @@ struct Lexer {
 
 			switch (_input[1]) {
 			case '/':
-				return this.lexLineComment();
+				const length = scanLineComment(_input);
+				assert(length >= 0);
+				return this.makeToken(Type.comment, length);
+
 			case '+':
-				return this.lexNestableComment();
+				const length = scanNestableComment(_input);
+				assert(length >= 0);
+				return this.makeToken(Type.comment, length);
+
 			case '*':
-				return this.lexAsteriskComment();
+				const length = scanAsteriskComment(_input);
+				assert(length >= 0);
+				return this.makeToken(Type.comment, length);
 
 			case '=':
 				return this.makeToken(Type.somethingElse, 2);
@@ -311,67 +319,6 @@ struct Lexer {
 			default:
 				return this.makeToken(Type.somethingElse, 1);
 			}
-		}
-
-		Token lexLineComment() {
-			if (_input.length == 2) {
-				return this.makeToken(Type.comment, 2);
-			}
-
-			const idxEOL = this.indexOfNextEOL();
-			const length = (idxEOL < 0) ? _input.length : idxEOL;
-			return this.makeToken(Type.comment, length);
-		}
-
-		Token lexAsteriskComment() {
-			if (_input.length == 2) {
-				return this.makeToken(Type.comment, 2);
-			}
-
-			bool prevWasAsterisk = false;
-			foreach (idx, c; _input[2 .. $]) {
-				if (prevWasAsterisk && (c == '/')) {
-					return this.makeToken(Type.comment, (2 + idx + 1));
-				}
-				prevWasAsterisk = (c == '*');
-			}
-
-			return this.makeToken(Type.comment, _input.length);
-		}
-
-		Token lexNestableComment() {
-			if (_input.length == 2) {
-				return this.makeToken(Type.comment, 2);
-			}
-
-			size_t level = 1;
-
-			bool prevWasPlus = false;
-			bool prevWasSlash = false;
-			foreach (idx, c; _input[2 .. $]) {
-				bool isSlash = (c == '/');
-				bool isPlus = false;
-				if (prevWasPlus && isSlash) {
-					--level;
-					isSlash = false;
-				}
-				else {
-					isPlus = (c == '+');
-					if (prevWasSlash && isPlus) {
-						++level;
-						isPlus = false;
-					}
-				}
-
-				if (level == 0) {
-					return this.makeToken(Type.comment, (2 + idx + 1));
-				}
-
-				prevWasPlus = isPlus;
-				prevWasSlash = isSlash;
-			}
-
-			return this.makeToken(Type.comment, _input.length);
 		}
 
 		Token lexEOL() {
