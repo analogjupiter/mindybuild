@@ -150,6 +150,8 @@ ptrdiff_t indexOfNextEOL(in str input) @safe pure nothrow @nogc {
 ptrdiff_t scanIdentifier(scope str input) @safe pure nothrow @nogc {
 	import std.ascii : isAlphaNum;
 
+	const originalLength = input.length;
+
 	auto idx = 0;
 	while (input.length > 0) {
 		const c = input[0];
@@ -211,7 +213,7 @@ ptrdiff_t scanIdentifier(scope str input) @safe pure nothrow @nogc {
 		++idx;
 	}
 
-	return input.length;
+	return originalLength;
 }
 
 ///
