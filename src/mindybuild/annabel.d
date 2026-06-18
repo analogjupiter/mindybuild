@@ -31,7 +31,6 @@ struct Token {
 		dot = '.',
 		colon = ':',
 		semicolon = ';',
-		equals = '=',
 
 		braceParenOpen = '(',
 		braceParenClose = ')',
@@ -41,6 +40,7 @@ struct Token {
 		braceCurlyClose = '}',
 
 		opConcat = '~',
+		opAssign = '=',
 		opAppend = 'a',
 
 		identifier = 'i',
@@ -130,6 +130,7 @@ struct Lexer {
 
 			switch (_input[0]) {
 			case '\x20':
+			case '\x09':
 			case '\x0B':
 			case '\x0C':
 				return this.lexWhitespace();
@@ -143,8 +144,8 @@ struct Lexer {
 			case '`':
 				return this.lexLiteralString();
 
-			case '.':
-				return this.makeToken(Type.dot, 1);
+			case '#':
+				return this.lexHash();
 
 			case '(':
 				return this.makeToken(Type.braceParenOpen, 1);
@@ -159,17 +160,23 @@ struct Lexer {
 			case '}':
 				return this.makeToken(Type.braceCurlyClose, 1);
 
+			case '=':
+				return this.makeToken(Type.opAssign, 1);
+
+			case ',':
+				return this.makeToken(Type.comma, 1);
+
+			case '.':
+				return this.makeToken(Type.dot, 1);
+
+			case '/':
+				return this.lexSlash();
+
 			case ':':
 				return this.makeToken(Type.colon, 1);
 
 			case ';':
 				return this.makeToken(Type.semicolon, 1);
-
-			case '/':
-				return this.lexSlash();
-
-			case '#':
-				return this.lexHash();
 
 			case '~':
 				return this.lexTilde();
@@ -188,6 +195,10 @@ struct Lexer {
 		Token lexIdentifier() {
 			const length = scanIdentifier(_input);
 			if (length < 0) {
+				return this.makeToken(Type.invalid, 1);
+			}
+
+			if (length == 0) {
 				return this.makeToken(Type.invalid, 1);
 			}
 
