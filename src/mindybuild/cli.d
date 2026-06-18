@@ -11,6 +11,8 @@
  +/
 module mindybuild.cli;
 
+import mindybuild.common;
+
 version (MindybuildCommandLineApp) {
 	mixin MindybuildCommandLineAppEntryPoint!();
 }
@@ -52,6 +54,10 @@ template runMindybuildCommandLineApp() {
 		case "-c":
 			return runConfigure(stderr, args[1 .. $]);
 
+		case "get-module-name":
+		case "--get-module-name":
+			return runGetModuleName(stdout, stderr, args[1 .. $]);
+
 		case "make":
 		case "--make":
 		case "-m":
@@ -90,6 +96,10 @@ template runMindybuildCommandLineApp() {
 			);
 		}
 
+		void writeErrorNoInputfiles(File target) {
+			target.writeln("Error: No input files provided.");
+		}
+
 		int runBuild(File stderr, string[] args) {
 			string[] confArgs = null;
 			string[] makeArgs = null;
@@ -119,6 +129,53 @@ template runMindybuildCommandLineApp() {
 
 		int runConfigure(File stderr, string[] args) {
 			return 1;
+		}
+
+		int runGetModuleName(File stdout, File stderr, string[] args) {
+			import mindybuild.kapenparse;
+			import std.file : readText;
+
+			if (args.length == 0) {
+				stderr.writeErrorNoInputfiles();
+				return 1;
+			}
+
+			Status status = Status.success;
+
+			foreach (file; args) {
+				string sourceCode;
+
+				try {
+					sourceCode = readText(file);
+				}
+				catch (Exception ex) {
+					status = status.error;
+					stderr.writeln(file, ": ", ex.message);
+					continue;
+				}
+
+				const(str)[] moduleName;
+				try {
+					moduleName = parseModuleName(sourceCode);
+				}
+				catch (ParserException ex) {
+					status = Status.error;
+					stderr.writeln(file, ": ", ex.message);
+					continue;
+				}
+
+				foreach (idx, id; moduleName) {
+					if (idx == 0) {
+						stdout.write(id);
+						continue;
+					}
+
+					stdout.write(".", id);
+				}
+				stdout.writeln();
+			}
+
+			return (Status.success) ? 0 : 1;
 		}
 
 		int runMake(File stderr, string[] args) {
