@@ -542,7 +542,7 @@ version (KapenparseModuleFinderApp) {
 				stderr.writeln(file, ": ", ex.message);
 			}
 
-			debug(KapenparseListTokens) {
+			debug (KapenparseListTokens) {
 				stderr.writeln("# BEGIN TOKENS OF ", file);
 				foreach (token; Lexer(sourceCode)) {
 					stderr.writeln(token);
