@@ -91,13 +91,16 @@ const(str)[] parseModuleName(str sourceCode) @safe pure {
 	return null;
 }
 
+///
 final class ParserException : Exception {
 	private this(string message, string file = __FILE__, size_t line = __LINE__) @safe pure nothrow @nogc {
 		super(message, file, line);
 	}
 }
 
+///
 struct Token {
+	///
 	enum Type : char {
 		invalid = '\0',
 		comment = '/',
@@ -119,10 +122,13 @@ struct Token {
 		eof = char.max,
 	}
 
+	///
 	Type type;
+	///
 	str data;
 }
 
+///
 struct Lexer {
 	import std.ascii;
 
@@ -135,6 +141,7 @@ struct Lexer {
 
 @safe pure nothrow @nogc:
 
+	///
 	public this(str input) {
 		_input = input;
 		this.skipBOM();
@@ -142,15 +149,17 @@ struct Lexer {
 	}
 
 	public {
-
+		///
 		bool empty() const {
 			return _input is null;
 		}
 
+		///
 		inout(Token) front() inout {
 			return _front;
 		}
 
+		///
 		void popFront() {
 			if (_front.type == Type.eof) {
 				_input = null;
