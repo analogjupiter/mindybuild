@@ -318,7 +318,7 @@ struct Lexer {
 				return this.makeToken(Type.comment, 2);
 			}
 
-			const idxEOL = this.scanEOL();
+			const idxEOL = this.indexOfNextEOL();
 			const length = (idxEOL < 0) ? _input.length : idxEOL;
 			return this.makeToken(Type.comment, length);
 		}
@@ -375,7 +375,7 @@ struct Lexer {
 		}
 
 		Token lexEOL() {
-			const length = detectEOL(_input);
+			const length = scanEOL(_input);
 			if (length <= 0) {
 				return this.lexIdentifierOrKeyword();
 			}
@@ -521,7 +521,7 @@ struct Lexer {
 			}
 
 			const type = (_input[1] == '!') ? Type.hashBangLine : Type.somethingElse;
-			const idxEOL = this.scanEOL();
+			const idxEOL = this.indexOfNextEOL();
 			if (idxEOL < 0) {
 				return this.makeToken(type, _input.length);
 			}
@@ -529,15 +529,8 @@ struct Lexer {
 			return this.makeToken(type, idxEOL);
 		}
 
-		ptrdiff_t scanEOL() {
-			foreach (idx, c; _input) {
-				const length = detectEOL(_input[idx .. $]);
-				if (length >= 1) {
-					return idx;
-				}
-			}
-
-			return -1;
+		ptrdiff_t indexOfNextEOL() {
+			return mindybuild.common.indexOfNextEOL(_input);
 		}
 
 		void skipBOM() {

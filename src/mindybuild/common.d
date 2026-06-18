@@ -68,7 +68,7 @@ template bomData(BOM bom) {
 }
 
 ///
-BOM detectBOM(in str input) @safe pure nothrow @nogc {
+BOM scanBOM(in str input) @safe pure nothrow @nogc {
 	if (input.length >= 4) {
 		const firstBytes = input[0 .. 4];
 		if (firstBytes == bomData!(BOM.utf32LE)) {
@@ -106,9 +106,9 @@ BOM detectBOM(in str input) @safe pure nothrow @nogc {
 		The length of the line terminator, if applicable.
 		Otherwise, a negative number.
  +/
-ptrdiff_t detectEOL(in str s) @safe pure nothrow @nogc {
+ptrdiff_t scanEOL(in str s) @safe pure nothrow @nogc {
 	if (s.length == 0) {
-		return 0;
+		return -1;
 	}
 
 	switch (s[0]) {
@@ -120,15 +120,27 @@ ptrdiff_t detectEOL(in str s) @safe pure nothrow @nogc {
 
 	case '\xE2':
 		if (s.length < 3) {
-			return 0;
+			return -1;
 		}
 		if (s[1] == '\x80' && (s[2] == '\xA8' || s[2] == '\xA9')) {
 			return 3;
 		}
-		return 0;
+		return -1;
 
 	default:
 		break;
+	}
+
+	return -1;
+}
+
+///
+ptrdiff_t indexOfNextEOL(in str input) @safe pure nothrow @nogc {
+	foreach (idx, c; input) {
+		const length = scanEOL(input[idx .. $]);
+		if (length >= 1) {
+			return idx;
+		}
 	}
 
 	return -1;
