@@ -525,7 +525,7 @@ version (KapenparseModuleFinderApp) {
 			return 1;
 		}
 
-		Status status = Status.success;
+		auto status = Status.success;
 
 		foreach (file; files) {
 			string sourceCode;
@@ -568,6 +568,6 @@ version (KapenparseModuleFinderApp) {
 			stdout.writeln();
 		}
 
-		return (Status.success) ? 0 : 1;
+		return (status == Status.success) ? 0 : 1;
 	}
 }

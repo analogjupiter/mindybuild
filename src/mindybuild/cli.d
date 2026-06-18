@@ -143,7 +143,7 @@ template runMindybuildCommandLineApp() {
 				return 1;
 			}
 
-			Status status = Status.success;
+			auto status = Status.success;
 
 			foreach (file; args) {
 				string sourceCode;
@@ -178,7 +178,7 @@ template runMindybuildCommandLineApp() {
 				stdout.writeln();
 			}
 
-			return (Status.success) ? 0 : 1;
+			return (status == Status.success) ? 0 : 1;
 		}
 
 		int runMake(File stderr, string[] args) {
