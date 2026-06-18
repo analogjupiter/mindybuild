@@ -17,6 +17,7 @@ version (MindybuildCommandLineApp) {
 	mixin MindybuildCommandLineAppEntryPoint!();
 }
 
+///
 mixin template MindybuildCommandLineAppEntryPoint() {
 	private int main(string[] args) @system {
 		import mindybuild.cli;
@@ -26,11 +27,13 @@ mixin template MindybuildCommandLineAppEntryPoint() {
 	}
 }
 
+///
 template runMindybuildCommandLineApp() {
 	import std.stdio;
 
 @safe:
 
+	///
 	int runMindybuildCommandLineApp(File stdout, File stderr, string arg0, string[] args) {
 		import mindybuild.common;
 
