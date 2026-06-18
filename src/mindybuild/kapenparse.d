@@ -11,7 +11,7 @@
  +/
 module mindybuild.kapenparse;
 
-alias str = const(char)[];
+import mindybuild.common;
 
 ///
 const(str)[] parseModuleName(str sourceCode) @safe pure {
@@ -222,118 +222,15 @@ struct Lexer {
 			case '\x0A':
 			case '\x0D':
 			case '\xE2':
-				return this.lexLinebreak();
+				return this.lexEOL();
 
 			default:
 				return this.lexIdentifierOrKeyword();
 			}
 		}
 
-		ptrdiff_t scanIdentifier() {
-			auto data = _input;
-			auto idx = 0;
-			while (data.length > 0) {
-				const c = data[0];
-
-				if (c == '\\') {
-					const ucn = this.scanUniversalCharacterName(idx);
-					if (ucn < 0) {
-						return -1;
-					}
-					data = data[ucn .. $];
-					idx += ucn;
-					continue;
-				}
-
-				if ((ubyte(c) & ubyte(0b1111_0000)) == 0b1111_0000) {
-					if (data.length < 4) {
-						return -1;
-					}
-					data = data[4 .. $];
-					idx += 4;
-					continue;
-				}
-				if ((ubyte(c) & ubyte(0b1110_0000)) == 0b1110_0000) {
-					if (data.length < 3) {
-						return -1;
-					}
-
-					// EOL?
-					if (c == '\xE2' && data[1] == '\x80' && (data[2] == '\xA8' || data[2] == '\xA9')) {
-						return idx;
-					}
-
-					data = data[3 .. $];
-					idx += 3;
-					continue;
-				}
-				if ((ubyte(c) & ubyte(0b1100_0000)) == 0b1100_0000) {
-					if (data.length < 2) {
-						return -1;
-					}
-					data = data[2 .. $];
-					idx += 2;
-					continue;
-				}
-				if ((ubyte(c) & ubyte(0b1000_0000)) == 0b1000_0000) {
-					// bad unicode
-					return -1;
-				}
-
-				const bool isEnd = !(
-					c.isAlphaNum || c == '_'
-				);
-
-				if (isEnd) {
-					return idx;
-				}
-
-				data = data[1 .. $];
-				++idx;
-			}
-
-			return _input.length;
-		}
-
-		ptrdiff_t scanUniversalCharacterName(size_t offset) {
-			const data = _input[offset .. $];
-			if (data.length < 2) {
-				return -1;
-			}
-
-			if (data[1] == 'u') {
-				if (data.length < (2 + 4)) {
-					return -1;
-				}
-
-				foreach (c; data[2 .. 2 + 4]) {
-					if (!c.isHexDigit) {
-						return -1;
-					}
-				}
-
-				return 4;
-			}
-
-			if (data[1] == 'U') {
-				if (data.length < (2 + 8)) {
-					return -1;
-				}
-
-				foreach (c; data[2 .. 2 + 8]) {
-					if (!c.isHexDigit) {
-						return -1;
-					}
-				}
-
-				return 8;
-			}
-
-			return -1;
-		}
-
 		Token lexIdentifierOrKeyword() {
-			const length = this.scanIdentifier();
+			const length = scanIdentifier(_input);
 			if (length < 0) {
 				return this.makeToken(Type.invalid, _input.length);
 			}
@@ -477,10 +374,10 @@ struct Lexer {
 			return this.makeToken(Type.comment, _input.length);
 		}
 
-		Token lexLinebreak() {
-			const length = this.startsWithEOL(_input);
+		Token lexEOL() {
+			const length = detectEOL(_input);
 			if (length <= 0) {
-				return this.makeToken(Type.somethingElse, 1);
+				return this.lexIdentifierOrKeyword();
 			}
 
 			return this.makeToken(Type.eol, length);
@@ -634,7 +531,7 @@ struct Lexer {
 
 		ptrdiff_t scanEOL() {
 			foreach (idx, c; _input) {
-				const length = this.startsWithEOL(_input[idx .. $]);
+				const length = detectEOL(_input[idx .. $]);
 				if (length >= 1) {
 					return idx;
 				}
@@ -643,38 +540,12 @@ struct Lexer {
 			return -1;
 		}
 
-		static ptrdiff_t startsWithEOL(str s) {
-			if (s.length == 0) {
-				return 0;
-			}
-
-			switch (s[0]) {
-			case '\x0D':
-				return ((s.length >= 2) && (s[1] == '\x0A')) ? 2 : 1;
-
-			case '\x0A':
-				return 1;
-
-			case '\xE2':
-				if (s.length < 3) {
-					return 0;
-				}
-				if (s[1] == '\x80' && (s[2] == '\xA8' || s[2] == '\xA9')) {
-					return 3;
-				}
-				return 0;
-
-			default:
-				break;
-			}
-
-			return -1;
-		}
-
 		void skipBOM() {
-			if (_input.length >= 3) {
-				if (_input[0 .. 3] == "\xEF\xBB\xBF") {
-					_input = _input[3 .. $];
+			static immutable bom = bomData!(BOM.utf8);
+
+			if (_input.length >= bom.length) {
+				if (_input[0 .. bom.length] == bom) {
+					_input = _input[bom.length .. $];
 				}
 			}
 		}
@@ -706,8 +577,8 @@ private bool isEmptyOrEOF(ref const(Lexer) lexer) @safe pure nothrow @nogc {
 
 /+
 	Usage:
-		ldc2 --d-version=KapenparseModuleFinderApp -run src/mindybuild/kapenparse.d -- <files>
-		ldc2 --d-version=KapenparseModuleFinderApp --d-debug=KapenparseListTokens -run src/mindybuild/kapenparse.d -- <files>
+		ldc2 --d-version=KapenparseModuleFinderApp -i -Isrc -run src/mindybuild/kapenparse.d -- <files>
+		ldc2 --d-version=KapenparseModuleFinderApp --d-debug=KapenparseListTokens -i -Isrc -run src/mindybuild/kapenparse.d -- <files>
  +/
 version (KapenparseModuleFinderApp) {
 	private int main(string[] args) @system {
