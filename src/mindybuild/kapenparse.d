@@ -525,6 +525,8 @@ version (KapenparseModuleFinderApp) {
 			return 1;
 		}
 
+		Status status = Status.success;
+
 		foreach (file; files) {
 			string sourceCode;
 
@@ -532,7 +534,9 @@ version (KapenparseModuleFinderApp) {
 				sourceCode = readText(file);
 			}
 			catch (Exception ex) {
+				status = Status.error;
 				stderr.writeln(file, ": ", ex.message);
+				continue;
 			}
 
 			debug (KapenparseListTokens) {
@@ -548,6 +552,7 @@ version (KapenparseModuleFinderApp) {
 				moduleName = parseModuleName(sourceCode);
 			}
 			catch (ParserException ex) {
+				status = Status.error;
 				stderr.writeln(file, ": ", ex.message);
 				continue;
 			}
@@ -563,6 +568,6 @@ version (KapenparseModuleFinderApp) {
 			stdout.writeln();
 		}
 
-		return 0;
+		return (Status.success) ? 0 : 1;
 	}
 }
