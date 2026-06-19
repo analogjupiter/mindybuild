@@ -181,6 +181,11 @@ struct Lexer {
 			case '~':
 				return this.lexTilde();
 
+			case '\x01': .. case '\x08':
+			case '\x0E': .. case '\x1F':
+			case '\x7F':
+				return this.makeToken(Type.invalid, 1);
+
 			default:
 				return this.lexIdentifier();
 			}
