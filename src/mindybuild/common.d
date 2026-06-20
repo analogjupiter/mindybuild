@@ -240,7 +240,7 @@ template TaggedUnion(Types...) {
 		}
 
 		private {
-			inout(T) load(T)() @system
+			inout(T) load(T)() inout @system
 			if (canHold!T) {
 				return _storage.tupleof[indexOf!T];
 			}
