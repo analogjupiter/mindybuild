@@ -70,7 +70,7 @@ struct Lexer {
 		Token _front;
 	}
 
-@safe pure nothrow:
+@safe pure nothrow @nogc:
 
 	///
 	public this(str input, str file = null) {
@@ -319,5 +319,405 @@ struct Lexer {
 
 			return Status.error;
 		}
+	}
+}
+
+private struct Feeder {
+	import std.meta;
+
+	private {
+		alias toSkip = AliasSeq!(
+			Token.Type.comment,
+			Token.Type.eol,
+			Token.Type.eof,
+			Token.Type.whitespace,
+		);
+
+		Lexer _lexer;
+	}
+
+@safe pure nothrow @nogc:
+
+	///
+	public this(Lexer lexer) {
+		_lexer = lexer;
+	}
+
+	public {
+		///
+		bool empty() const {
+			return _lexer.empty;
+		}
+
+		///
+		inout(Token) front() inout {
+			return _lexer.front;
+		}
+
+		///
+		void popFront() {
+			while (!_lexer.empty) {
+				if (!this.shallSkip()) {
+					return;
+				}
+			}
+		}
+	}
+
+	private {
+		bool shallSkip() {
+			pragma(inline, true);
+			// dfmt off
+			switch (_lexer.front.type) {
+					default:
+						return false;
+
+				static foreach (type; toSkip) {
+					case type:
+						_lexer.popFront();
+						return true;
+				}
+			}
+			// dfmt on
+		}
+	}
+}
+
+///
+struct Parser {
+	private {
+		Feeder _feeder;
+		Statement _front;
+		bool _empty = true;
+	}
+
+@safe pure:
+
+	///
+	public this(str sourceCode, str file = null) nothrow @nogc {
+		auto lexer = Lexer(sourceCode, file);
+		this(lexer);
+	}
+
+	///
+	public this(Lexer lexer) nothrow @nogc {
+		auto feeder = Feeder(lexer);
+		this(feeder);
+	}
+
+	private this(Feeder feeder) nothrow @nogc {
+		_feeder = feeder;
+		_empty = false;
+	}
+
+	public {
+		///
+		bool empty() const nothrow @nogc {
+			return _empty;
+		}
+
+		inout(Statement) front() inout nothrow @nogc {
+			return _front;
+		}
+
+		void popFront() {
+			if (_feeder.empty) {
+				_empty = true;
+				return;
+			}
+
+			_front = parseStatement(_feeder);
+		}
+	}
+}
+
+///
+struct Document {
+	///
+	Statement[] statements;
+	///
+	str file;
+}
+
+///
+Document parseDocument(str sourceCode, str file = null) @safe pure {
+	import std.array : appender;
+
+	auto parser = Parser(sourceCode, file);
+	auto statements = appender!(Statement[]);
+	foreach (statement; parser) {
+		statements ~= statement;
+	}
+	return Document(statements[], file);
+}
+
+///
+Statement parseStatement(ref Lexer lexer) @safe pure {
+	auto feeder = Feeder(lexer);
+	auto result = parseStatement(feeder);
+	lexer = feeder._lexer;
+	return result;
+}
+
+private Statement parseStatement(ref Feeder feeder) @safe pure {
+	// TODO: implement
+	assert(false, "Not implemented.");
+}
+
+// Statements
+
+///
+alias Statement = ExpressionStatement;
+
+///
+struct ExpressionStatement {
+	public {
+		///
+		Expression expression;
+	}
+
+@safe pure:
+
+	///
+	string toString() const {
+		if (expression is null) {
+			return "\n";
+		}
+		return expression.toString();
+	}
+
+	///
+	void toString(ref CodePrinter printer) const {
+		if (expression is null) {
+			printer.printLine();
+			return;
+		}
+		return expression.toString(printer);
+	}
+}
+
+// Expressions
+
+///
+abstract class Expression {
+@safe pure:
+
+	private this() {
+	}
+
+	///
+	public final override string toString() const {
+		auto printer = CodePrinter("\t", 0);
+		this.toString(printer);
+		return printer.toString();
+	}
+
+	///
+	public abstract void toString(ref CodePrinter printer) const;
+}
+
+///
+final class ArrayLiteralExpression : Expression {
+	public {
+		///
+		ValueExpression items;
+	}
+
+@safe pure:
+
+	private this() {
+		super();
+	}
+
+	///
+	public override void toString(ref CodePrinter printer) const {
+		// TODO: implement
+		assert(false, "Not implemented.");
+	}
+}
+
+///
+final class AssignmentExpression : Expression {
+	public {
+		///
+		SelectorExpression lhs;
+		///
+		ValueExpression rhs;
+	}
+
+@safe pure:
+
+	private this() {
+		super();
+	}
+
+	///
+	public override void toString(ref CodePrinter printer) const {
+		// TODO: implement
+		assert(false, "Not implemented.");
+	}
+}
+
+///
+final class BooleanLiteralExpression : LiteralExpression {
+	public {
+		///
+		bool value;
+	}
+
+@safe pure:
+
+	private this() {
+		super();
+	}
+
+	///
+	public override void toString(ref CodePrinter printer) const {
+		// TODO: implement
+		assert(false, "Not implemented.");
+	}
+}
+
+///
+final class CallExpression : Expression {
+	public {
+		///
+		SelectorExpression functionName;
+		///
+		ValueExpression[] parameters;
+	}
+
+@safe pure:
+
+	private this() {
+		super();
+	}
+
+	///
+	public override void toString(ref CodePrinter printer) const {
+		// TODO: implement
+		assert(false, "Not implemented.");
+	}
+}
+
+///
+abstract class LiteralExpression : Expression {
+@safe pure:
+
+	private this() {
+		super();
+	}
+
+	///
+	public override void toString(ref CodePrinter printer) const {
+		// TODO: implement
+		assert(false, "Not implemented.");
+	}
+}
+
+///
+final class ObjectLiteralExpression : LiteralExpression {
+	public {
+		///
+		ValueExpression[string] members;
+	}
+
+@safe pure:
+
+	private this() {
+		super();
+	}
+
+	///
+	public override void toString(ref CodePrinter printer) const {
+		// TODO: implement
+		assert(false, "Not implemented.");
+	}
+}
+
+///
+final class SelectorExpression : Expression {
+	public {
+		///
+		str[] identifiers;
+	}
+
+@safe pure:
+
+	private this() {
+		super();
+	}
+
+	///
+	public override void toString(ref CodePrinter printer) const {
+		// TODO: implement
+		assert(false, "Not implemented.");
+	}
+}
+
+///
+final class StringLiteralExpression : LiteralExpression {
+	public {
+		///
+		str value;
+	}
+
+@safe pure:
+
+	private this() {
+		super();
+	}
+
+	///
+	public override void toString(ref CodePrinter printer) const {
+		// TODO: implement
+		assert(false, "Not implemented.");
+	}
+}
+
+///
+final class ValueExpression : Expression {
+
+	///
+	public alias Data = TaggedUnion!(
+		LiteralExpression,
+		VariableExpression,
+	);
+
+	public {
+		///
+		Data data;
+	}
+
+@safe pure:
+
+	private this() {
+		super();
+	}
+
+	///
+	public override void toString(ref CodePrinter printer) const {
+		// TODO: implement
+		assert(false, "Not implemented.");
+	}
+}
+
+///
+final class VariableExpression : Expression {
+	public {
+		///
+		SelectorExpression selector;
+	}
+
+@safe pure:
+
+	private this() {
+		super();
+	}
+
+	///
+	public override void toString(ref CodePrinter printer) const {
+		// TODO: implement
+		assert(false, "Not implemented.");
 	}
 }
