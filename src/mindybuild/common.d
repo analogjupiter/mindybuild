@@ -48,7 +48,7 @@ struct CodePrinter {
 	private template isString(T) {
 		import std.traits : Unconst;
 
-		enum bool isString = is(Unconst!T == string);
+		enum bool isString = (is(Unconst!T == string) || is(T == str));
 	}
 
 @safe pure:
