@@ -521,7 +521,7 @@ abstract class Expression {
 final class ArrayLiteralExpression : Expression {
 	public {
 		///
-		ValueExpression items;
+		ValueExpression[] items;
 	}
 
 @safe pure:
