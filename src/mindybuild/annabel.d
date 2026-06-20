@@ -18,6 +18,7 @@ alias Location = mindybuild.common.Location;
 
 ///
 struct Token {
+	///
 	enum Type : char {
 		invalid = '\x00',
 
