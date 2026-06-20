@@ -493,7 +493,8 @@ struct ExpressionStatement {
 			printer.printLine();
 			return;
 		}
-		return expression.toString(printer);
+		expression.toString(printer);
+		printer.print(";\n");
 	}
 }
 
@@ -532,8 +533,13 @@ final class ArrayLiteralExpression : Expression {
 
 	///
 	public override void toString(ref CodePrinter printer) const {
-		// TODO: implement
-		assert(false, "Not implemented.");
+		printer.startBlock("[");
+		foreach (item; items) {
+			printer.printIdentation();
+			item.toString(printer);
+			printer.print(",\n");
+		}
+		printer.endBlock("]");
 	}
 }
 
@@ -554,8 +560,9 @@ final class AssignmentExpression : Expression {
 
 	///
 	public override void toString(ref CodePrinter printer) const {
-		// TODO: implement
-		assert(false, "Not implemented.");
+		lhs.toString(printer);
+		printer.print(" = ");
+		rhs.toString(printer);
 	}
 }
 
@@ -574,8 +581,8 @@ final class BooleanLiteralExpression : LiteralExpression {
 
 	///
 	public override void toString(ref CodePrinter printer) const {
-		// TODO: implement
-		assert(false, "Not implemented.");
+		const printable = (value) ? "true" : "false";
+		printer.print(printable);
 	}
 }
 
@@ -596,8 +603,15 @@ final class CallExpression : Expression {
 
 	///
 	public override void toString(ref CodePrinter printer) const {
-		// TODO: implement
-		assert(false, "Not implemented.");
+		functionName.toString(printer);
+		printer.print("(");
+		foreach (idx, parameter; parameters) {
+			if (idx > 0) {
+				printer.print(", ");
+			}
+			parameter.toString(printer);
+		}
+		printer.print(")");
 	}
 }
 
@@ -607,12 +621,6 @@ abstract class LiteralExpression : Expression {
 
 	private this() {
 		super();
-	}
-
-	///
-	public override void toString(ref CodePrinter printer) const {
-		// TODO: implement
-		assert(false, "Not implemented.");
 	}
 }
 
@@ -631,8 +639,14 @@ final class ObjectLiteralExpression : LiteralExpression {
 
 	///
 	public override void toString(ref CodePrinter printer) const {
-		// TODO: implement
-		assert(false, "Not implemented.");
+		printer.startBlock("{");
+		foreach (key, value; members) {
+			printer.printIdentation();
+			printer.print(key, ": ");
+			value.toString(printer);
+			printer.print(",\n");
+		}
+		printer.endBlock("}");
 	}
 }
 
@@ -651,8 +665,12 @@ final class SelectorExpression : Expression {
 
 	///
 	public override void toString(ref CodePrinter printer) const {
-		// TODO: implement
-		assert(false, "Not implemented.");
+		foreach (idx, identifier; identifiers) {
+			if (idx > 0) {
+				printer.print(".");
+			}
+			printer.print(identifier);
+		}
 	}
 }
 
@@ -671,8 +689,7 @@ final class StringLiteralExpression : LiteralExpression {
 
 	///
 	public override void toString(ref CodePrinter printer) const {
-		// TODO: implement
-		assert(false, "Not implemented.");
+		printer.print(value);
 	}
 }
 
@@ -698,8 +715,14 @@ final class ValueExpression : Expression {
 
 	///
 	public override void toString(ref CodePrinter printer) const {
-		// TODO: implement
-		assert(false, "Not implemented.");
+		if (data.has!LiteralExpression) {
+			return data.get!LiteralExpression.toString(printer);
+		}
+		if (data.has!VariableExpression) {
+			return data.get!VariableExpression.toString(printer);
+		}
+
+		assert(false, "ICE: Missing handler for a union type of `ValueExpression`.");
 	}
 }
 
@@ -718,7 +741,6 @@ final class VariableExpression : Expression {
 
 	///
 	public override void toString(ref CodePrinter printer) const {
-		// TODO: implement
-		assert(false, "Not implemented.");
+		selector.toString(printer);
 	}
 }
