@@ -35,6 +35,126 @@ pragma(inline, true) @safe pure nothrow @nogc {
 }
 
 ///
+template TaggedUnion(Types...) {
+	import std.meta : NoDuplicates, staticIndexOf;
+	import std.traits : TemplateArgsOf;
+
+	static assert(Types.length > 0, "Nonsensical union of no types.");
+	static assert(Types.length <= ubyte.max, "Type count out of range.");
+	static assert(is(NoDuplicates!Types == Types), "Duplicate types.");
+
+	///
+	struct TaggedUnion {
+		public {
+			alias Types = TemplateArgsOf!(typeof(this));
+		}
+
+		private {
+			Storage _storage;
+			ubyte _tag;
+		}
+
+		///
+		public this(T)(T value)
+		if (canHold!T) {
+			_storage.tupleof[indexOf!T] = value;
+		}
+
+		public {
+			///
+			auto opAssign(T)(auto ref T value)
+			if (canHold!T) {
+				this.set(value);
+				return this;
+			}
+
+			///
+			auto opAssign(typeof(this) value) @trusted {
+				_tag = value._tag;
+				_storage = value._storage;
+				return this;
+			}
+
+			///
+			auto opAssign(ref typeof(this) value) @trusted {
+				_tag = value._tag;
+				_storage = value._storage;
+				return this;
+			}
+		}
+
+		public {
+			///
+			enum bool canHold(T) = (staticIndexOf!(T, Types) >= 0);
+
+			///
+			private template indexOf(T)
+			if (canHold!T) {
+				enum ubyte indexOf = (staticIndexOf!(T, Types) & ubyte.max);
+			}
+		}
+
+		public {
+			///
+			bool has(T)() const
+			if (canHold!T) {
+				pragma(inline, true);
+				return (_tag == indexOf!T);
+			}
+
+			///
+			inout(T) get(T)() inout @trusted
+			if (canHold!T) {
+				if (_tag != indexOf!T) {
+					assert(false, "The requested type (" ~ T.stringof ~ ") is not held by this tagged union instance.");
+				}
+
+				return this.load!T();
+			}
+
+			///
+			bool tryGet(T)(out T value) @trusted {
+				const doesntHave = !this.has!T();
+				if (doesntHave) {
+					return false;
+				}
+
+				value = this.load!T();
+				return true;
+			}
+
+			///
+			void set(T)(auto ref T value) @trusted
+			if (canHold!T) {
+				this.store(value);
+			}
+		}
+
+		private {
+			inout(T) load(T)() @system
+			if (canHold!T) {
+				return _storage.tupleof[indexOf!T];
+			}
+
+			void store(T)(auto ref T value) @trusted
+			if (canHold!T) {
+				_storage.tupleof[indexOf!T] = value;
+				_tag = indexOf!T;
+			}
+		}
+
+		private static union Storage {
+			enum string memberName(size_t idx) = "value" ~ idx.stringof;
+
+			static foreach (idx, T; Types) {
+				mixin(`T ` ~ memberName!idx ~ `;`);
+			}
+		}
+	}
+
+}
+
+///
 enum BOM {
 	///
 	none,
