@@ -70,6 +70,10 @@ template runMindybuildCommandLineApp() {
 		case "-m":
 			return runMake(stderr, args[1 .. $]);
 
+		case "parse-bel":
+		case "--parse-bel":
+			return runParseBEL(stdout, stderr, args[1 .. $]);
+
 		case "help":
 		case "--help":
 		case "-h":
@@ -228,6 +232,44 @@ template runMindybuildCommandLineApp() {
 
 		int runMake(File stderr, string[] args) {
 			return 1;
+		}
+
+		int runParseBEL(File stdout, File stderr, string[] args) {
+			import mindybuild.annabel;
+			import std.file : readText;
+
+			if (args.length == 0) {
+				stderr.writeErrorNoInputfiles();
+				return 1;
+			}
+
+			if (args.length > 1) {
+				stderr.writeln("Error: Too many arguments.");
+				return 1;
+			}
+
+			const file = args[0];
+
+			string sourceCode;
+			try {
+				sourceCode = readText(file);
+			}
+			catch (Exception ex) {
+				stderr.writeln(file, ": ", ex.msg);
+				return 1;
+			}
+
+			try {
+				foreach(statement; Parser(sourceCode, file)) {
+					stdout.writeln(statement.toString());
+				}
+			}
+			catch(Exception ex){
+				stderr.writeln("Error: ", ex.msg);
+				return 1;
+			}
+
+			return 0;
 		}
 	}
 }
