@@ -35,6 +35,115 @@ pragma(inline, true) @safe pure nothrow @nogc {
 }
 
 ///
+struct CodePrinter {
+	import std.array : Appender;
+	import std.conv : text;
+
+	private {
+		Appender!string _appender;
+		size_t _indent;
+		string _indentChar;
+	}
+
+	private template isString(T) {
+		import std.traits : Unconst;
+
+		enum bool isString = is(Unconst!T == string);
+	}
+
+@safe pure:
+
+	public this(size_t indentationLevel, string indentationCharacter = "\t") {
+		_indent = indentationLevel;
+		_indentChar = indentationCharacter;
+	}
+
+	public this(string indentationCharacter, size_t indentationLevel = 0) {
+		this(indentationLevel, indentationCharacter);
+	}
+
+	public {
+		typeof(this) opOpAssign(string op : '~')(string value) {
+			_appender.put(value);
+			return this;
+		}
+
+		typeof(this) opOpAssign(string op : '~')(char value) {
+			_appender.put(value);
+			return this;
+		}
+	}
+
+	public {
+		/++
+			Prints `prefix`, then advances identation by one.
+		 +/
+		void startBlock(string prefix) {
+			this.printLine(prefix);
+			++_indent;
+		}
+
+		/++
+			Retrogresses indentation by one, then prints `suffix`.
+		 +/
+		void endBlock(string suffix) {
+			--_indent;
+			this.printLine(suffix);
+		}
+
+		/++
+			Prints the indentation for a new line.
+		 +/
+		void printIdentation() {
+			foreach (n; 0 .. _indent) {
+				_appender.put(_indentChar);
+			}
+		}
+
+		/++
+			Prints the provided data immediately.
+		 +/
+		void print(Args...)(Args args) {
+			foreach (arg; args) {
+				static if (isString!(typeof(arg))) {
+					_appender.put(arg);
+				}
+				else {
+					_appender.put(text(arg));
+				}
+			}
+		}
+
+		/++
+			Prints a new line at the current identation level.
+		 +/
+		void printLine(Args...)(Args args) {
+			size_t reservation = (_indent * _indentChar.length);
+			foreach (arg; args) {
+				static if (isString!(typeof(arg))) {
+					reservation += arg.length;
+				}
+			}
+
+			_appender.reserve(reservation);
+			printIdentation();
+			foreach (arg; args) {
+				static if (is(typeof(arg) == string)) {
+					_appender.put(arg);
+				}
+				else {
+					_appender.put(text(arg));
+				}
+			}
+		}
+	}
+
+	public string toString() const {
+		return _appender[];
+	}
+}
+
+///
 template TaggedUnion(Types...) {
 	import std.meta : NoDuplicates, staticIndexOf;
 	import std.traits : TemplateArgsOf;
