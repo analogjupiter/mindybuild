@@ -170,23 +170,30 @@ enum BOM {
 	utf32BE,
 }
 
+///
 template bomData(BOM bom) {
 	static if (bom == BOM.none) {
+		///
 		static immutable ubyte[0] bomData = [];
 	}
 	else static if (bom == BOM.utf8) {
+		///
 		static immutable ubyte[3] bomData = [0xEF, 0xBB, 0xBF];
 	}
 	else static if (bom == BOM.utf16LE) {
+		///
 		static immutable ubyte[2] bomData = [0xFF, 0xFE];
 	}
 	else static if (bom == BOM.utf16BE) {
+		///
 		static immutable ubyte[2] bomData = [0xFE, 0xFF];
 	}
 	else static if (bom == BOM.utf32LE) {
+		///
 		static immutable ubyte[4] bomData = [0xFF, 0xFE, 0x00, 0x00];
 	}
 	else static if (bom == BOM.utf32BE) {
+		///
 		static immutable ubyte[4] bomData = [0x00, 0x00, 0xFE, 0xFF];
 	}
 	else {
