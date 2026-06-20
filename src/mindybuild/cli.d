@@ -196,6 +196,7 @@ template runMindybuildCommandLineApp() {
 
 			if (args.length > 1) {
 				stderr.writeln("Too many arguments.");
+				return 1;
 			}
 
 			const file = args[0];
@@ -206,6 +207,7 @@ template runMindybuildCommandLineApp() {
 			}
 			catch (Exception ex) {
 				stderr.writeln(file, ": ", ex.msg);
+				return 1;
 			}
 
 			auto status = Status.success;
