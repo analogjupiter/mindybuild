@@ -195,7 +195,7 @@ template runMindybuildCommandLineApp() {
 			}
 
 			if (args.length > 1) {
-				stderr.writeln("Too many arguments.");
+				stderr.writeln("Error: Too many arguments.");
 				return 1;
 			}
 
