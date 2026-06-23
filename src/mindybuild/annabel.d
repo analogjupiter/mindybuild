@@ -86,7 +86,12 @@ struct Lexer {
 			return (_input is null);
 		}
 
-		///
+		/++
+			Current token of lexed source code.
+
+			Or the final token of an now-empty range;
+			i.e. may be called on empty ranges.
+		 +/
 		inout(Token) front() inout {
 			return _front;
 		}
@@ -95,6 +100,7 @@ struct Lexer {
 		void popFront() {
 			if (_front.type == Type.eof) {
 				_input = null;
+				// keep final token in _front
 				return;
 			}
 
@@ -350,7 +356,12 @@ private struct Feeder {
 			return _lexer.empty;
 		}
 
-		///
+		/++
+			Current token of the filtered lexer output.
+
+			Or the final token of an now-empty range;
+			i.e. may be called on empty ranges.
+		 +/
 		inout(Token) front() inout {
 			return _lexer.front;
 		}
@@ -417,10 +428,12 @@ struct Parser {
 			return _empty;
 		}
 
+		///
 		inout(Statement) front() inout nothrow @nogc {
 			return _front;
 		}
 
+		///
 		void popFront() {
 			if (_feeder.empty) {
 				_empty = true;
@@ -429,6 +442,88 @@ struct Parser {
 
 			_front = parseStatement(_feeder);
 		}
+	}
+}
+
+///
+class ParserException : Exception {
+	public {
+		///
+		Location location;
+	}
+
+	private this(
+		string message,
+		Location location,
+		string file = __FILE__, size_t line = __LINE__
+	) @safe pure nothrow @nogc {
+		super(message, file, line);
+	}
+}
+
+///Authors: 
+final class DuplicateObjectPropertyNameException : ParserException {
+	public {
+		///
+		str propertyName;
+	}
+
+	private this(
+		str propertyName,
+		Location location,
+		string file = __FILE__, size_t line = __LINE__) @safe pure {
+		import std.conv : text;
+
+		this.propertyName = propertyName;
+		super(text("Duplicate property name `", propertyName, "` in object."), location, file, line);
+
+	}
+}
+
+///
+final class UnexpectedEOFException : ParserException {
+	private this(
+		Location location,
+		string file = __FILE__, size_t line = __LINE__
+	) @safe pure nothrow @nogc {
+		super("Unexpected end of file.", location, file, line);
+	}
+}
+
+///
+final class UnexpectedTokenException : ParserException {
+	public {
+		///
+		Token got;
+
+		///
+		Token.Type[] expected;
+	}
+
+	private this(
+		Token got,
+		Token.Type[] expected,
+		string file = __FILE__, size_t line = __LINE__
+	) @safe pure
+	in (expected.length > 0) {
+
+		string msg() {
+			import std.algorithm : map;
+			import std.conv : to;
+			import std.string : join;
+
+			return "Unexpected `"
+				~ got.type.to!string
+				~ "` `"
+				~ got.data.to!string
+				~ "`; expected `"
+				~ expected.map!(x => x.to!string).join("`, `") ~ "`.";
+		}
+
+		this.got = got;
+		this.expected = expected;
+
+		super(msg(), got.location, file, line);
 	}
 }
 
@@ -461,8 +556,433 @@ Statement parseStatement(ref Lexer lexer) @safe pure {
 }
 
 private Statement parseStatement(ref Feeder feeder) @safe pure {
-	// TODO: implement
-	assert(false, "Not implemented.");
+	alias Type = Token.Type;
+
+	auto expr = parseExpression(feeder);
+
+	if (feeder.empty) {
+		throw new UnexpectedEOFException(feeder.front.location);
+	}
+	if (feeder.front.type != Type.semicolon) {
+		throw new UnexpectedTokenException(feeder.front, [Type.semicolon]);
+	}
+
+	return ExpressionStatement(expr);
+}
+
+private Expression parseExpression(ref Feeder feeder) @safe pure {
+	alias Type = Token.Type;
+
+	if (feeder.empty) {
+		throw new UnexpectedEOFException(feeder.front.location);
+	}
+
+	switch (feeder.front.type) {
+	case Type.braceSquarOpen:
+	case Type.braceCurlyOpen:
+	case Type.literalString:
+		return parseValueExpression(feeder);
+
+	case Type.identifier:
+		return parseExpressionWithIdentifier(feeder);
+
+	default:
+		break;
+	}
+
+	throw new UnexpectedTokenException(feeder.front, [
+		Type.identifier,
+		Type.literalString,
+		Type.braceSquarOpen,
+		Type.braceCurlyOpen,
+	]);
+}
+
+private AppendExpression parseAppendExpression(ref Feeder feeder, SelectorExpression lhs) @safe pure {
+	assert(feeder.front.type == Token.Type.opAppend);
+	feeder.popFront();
+
+	return parseBinaryExpression!AppendExpression(feeder, lhs);
+}
+
+private ArrayLiteralExpression parseArrayLiteralExpression(ref Feeder feeder) @safe pure {
+	alias Type = Token.Type;
+
+	assert(feeder.front.type == Type.braceSquarOpen);
+	feeder.popFront();
+
+	ArrayLiteralExpression result = null;
+
+	while (!feeder.empty) {
+		if (feeder.front.type == Type.braceSquarClose) {
+			feeder.popFront();
+			if (result is null) {
+				result = new ArrayLiteralExpression();
+			}
+			return result;
+		}
+
+		auto item = parseValueExpression(feeder);
+		feeder.popFront();
+
+		if (feeder.empty) {
+			throw new UnexpectedEOFException(feeder.front.location);
+		}
+
+		if (result is null) {
+			result = new ArrayLiteralExpression();
+		}
+
+		result.items ~= item;
+
+		if (feeder.front.type == Type.braceSquarClose) {
+			feeder.popFront();
+			return result;
+		}
+
+		if (feeder.front.type != Type.comma) {
+			throw new UnexpectedTokenException(feeder.front, [
+				Type.braceSquarClose,
+				Type.comma,
+			]);
+		}
+
+		feeder.popFront();
+	}
+
+	throw new UnexpectedEOFException(feeder.front.location);
+}
+
+private AssignmentExpression parseAssignmentExpression(ref Feeder feeder, SelectorExpression lhs) @safe pure {
+	assert(feeder.front.type == Token.Type.opAssign);
+	feeder.popFront();
+
+	return parseBinaryExpression!AssignmentExpression(feeder, lhs);
+}
+
+private T parseBinaryExpression(T : BinaryExpression)(
+	ref Feeder feeder,
+	SelectorExpression lhs,
+) @safe pure {
+	auto rhs = parseValueExpression(feeder);
+	auto result = new T();
+	result.lhs = lhs;
+	result.rhs = rhs;
+	return result;
+}
+
+private CallExpression parseCallExpression(ref Feeder feeder, SelectorExpression functionName) @safe pure {
+	alias Type = Token.Type;
+
+	assert(feeder.front.type == Type.braceParenOpen);
+	feeder.popFront();
+
+	CallExpression result = null;
+
+	while (!feeder.empty) {
+		if (feeder.front.type == Type.braceParenClose) {
+			if (result is null) {
+				result = new CallExpression();
+				result.functionName = functionName;
+			}
+			return result;
+		}
+
+		auto param = parseValueExpression(feeder);
+
+		if (result is null) {
+			result = new CallExpression();
+			result.functionName = functionName;
+		}
+
+		result.parameters ~= param;
+
+		if (feeder.empty) {
+			throw new UnexpectedEOFException(feeder.front.location);
+		}
+
+		if (feeder.front.type == Type.braceParenClose) {
+			feeder.popFront();
+			return result;
+		}
+
+		if (feeder.front.type != Type.comma) {
+			throw new UnexpectedTokenException(feeder.front, [
+				Type.braceParenClose,
+				Type.comma,
+			]);
+		}
+
+		feeder.popFront();
+	}
+
+	throw new UnexpectedEOFException(feeder.front.location);
+}
+
+private SelectorExpression parseSelectorExpression(ref Feeder feeder) @safe pure {
+	alias Type = Token.Type;
+
+	SelectorExpression result;
+
+	while (!feeder.empty) {
+		if (feeder.front.type != Type.identifier) {
+			throw new UnexpectedTokenException(feeder.front, [Type.identifier]);
+		}
+
+		if (result is null) {
+			result = new SelectorExpression();
+		}
+		result.identifiers ~= feeder.front.data;
+
+		feeder.popFront();
+		if (feeder.empty || (feeder.front.type != Type.dot)) {
+			return result;
+		}
+
+		feeder.popFront();
+	}
+
+	throw new UnexpectedEOFException(feeder.front.location);
+}
+
+private Expression parseExpressionWithIdentifier(ref Feeder feeder) @safe pure {
+	alias Type = Token.Type;
+
+	auto lhs = parseSelectorExpression(feeder);
+
+	switch (feeder.front.type) {
+	case Type.braceParenOpen:
+		return parseCallExpression(feeder, lhs);
+
+	case Type.opAppend:
+		return parseAppendExpression(feeder, lhs);
+
+	case Type.opAssign:
+		return parseAssignmentExpression(feeder, lhs);
+
+	default:
+		break;
+	}
+
+	throw new UnexpectedTokenException(feeder.front, [
+		Type.braceParenOpen,
+		Type.opAssign,
+		Type.opAppend,
+	]);
+}
+
+private LiteralExpression parseLiteralExpression(ref Feeder feeder) @safe pure {
+	alias Type = Token.Type;
+
+	if (feeder.empty) {
+		throw new UnexpectedEOFException(feeder.front.location);
+	}
+
+	switch (feeder.front.type) {
+	case Type.braceCurlyOpen:
+		return parseObjectLiteralExpression(feeder);
+
+	case Type.braceSquarOpen:
+		return parseArrayLiteralExpression(feeder);
+
+	case Type.literalString:
+		return parseStringLiteralExpression(feeder);
+
+	default:
+		break;
+	}
+
+	throw new UnexpectedTokenException(feeder.front, [
+		Type.braceCurlyOpen,
+		Type.braceSquarOpen,
+		Type.literalString,
+	]);
+}
+
+private ObjectLiteralExpression parseObjectLiteralExpression(ref Feeder feeder) @safe pure {
+	alias Type = Token.Type;
+
+	assert(feeder.front.type == Type.braceCurlyOpen);
+	feeder.popFront();
+
+	ObjectLiteralExpression result = null;
+
+	while (!feeder.empty) {
+		if (feeder.front.type == Type.braceCurlyClose) {
+			feeder.popFront();
+			if (result is null) {
+				result = new ObjectLiteralExpression();
+			}
+			return result;
+		}
+
+		if (feeder.front.type != Type.identifier) {
+			throw new UnexpectedTokenException(feeder.front, [Type.identifier]);
+		}
+		Token key = feeder.front;
+
+		feeder.popFront();
+		if (feeder.empty) {
+			throw new UnexpectedEOFException(feeder.front.location);
+		}
+
+		if (feeder.front.type != Type.colon) {
+			throw new UnexpectedTokenException(feeder.front, [Type.colon]);
+		}
+
+		feeder.popFront();
+		if (feeder.empty) {
+			throw new UnexpectedEOFException(feeder.front.location);
+		}
+
+		auto value = parseValueExpression(feeder);
+
+		if (feeder.empty) {
+			throw new UnexpectedEOFException(feeder.front.location);
+		}
+
+		if (result is null) {
+			result = new ObjectLiteralExpression();
+		}
+		else {
+			const alreadyExisting = ((key.data in result.properties) !is null);
+			if (alreadyExisting) {
+				throw new DuplicateObjectPropertyNameException(key.data, key.location);
+			}
+		}
+
+		result.properties[key.data] = value;
+
+		if (feeder.front.type == Type.braceCurlyClose) {
+			feeder.popFront();
+			return result;
+		}
+
+		if (feeder.front.type != Type.colon) {
+			throw new UnexpectedTokenException(feeder.front, [
+				Type.braceCurlyClose,
+				Type.colon,
+			]);
+		}
+
+		feeder.popFront();
+	}
+
+	throw new UnexpectedEOFException(feeder.front.location);
+}
+
+private StringLiteralExpression parseStringLiteralExpression(ref Feeder feeder) @safe pure {
+	assert(feeder.front.type == Token.Type.literalString);
+
+	static str parseStringLiteral(str raw, Location loc) {
+		import std.conv : text;
+
+		if (raw.length == 0) {
+			throw new ParserException("Bad string literal.", loc);
+		}
+
+		if (raw.length == 1) {
+			throw new ParserException("Unterminated string literal.", loc);
+		}
+
+		if (raw[0] == '"') {
+			bool hasEscapeSequences = false;
+			foreach (c; raw[1 .. $]) {
+				if (c == '\\') {
+					hasEscapeSequences = true;
+					break;
+				}
+			}
+
+			if (!hasEscapeSequences) {
+				return raw[1 .. ($ - 1)];
+			}
+
+			// TODO: implement
+			assert(false, "Unfinished implementation.");
+
+			foreach (idx, c; raw[1 .. $]) {
+				if (c == '`') {
+					if (c != (1 + raw.length)) {
+						auto locJunk = loc;
+						locJunk.byteOffset += idx + 1;
+						throw new ParserException("Junk data after string literal.", locJunk);
+					}
+					return raw[1 .. 1 + idx];
+				}
+			}
+			auto locUnterm = loc;
+			locUnterm.byteOffset += raw.length;
+			throw new ParserException("Unterminated string literal.", locUnterm);
+		}
+
+		if (raw[0] == '`') {
+			foreach (idx, c; raw[1 .. $]) {
+				if (c == '`') {
+					return raw[1 .. 1 + idx];
+				}
+			}
+			auto loc2 = loc;
+			loc2.byteOffset += raw.length;
+			throw new ParserException("Unterminated string literal.", loc2);
+		}
+
+		throw new ParserException(text("Unsupported type of string literal `", raw, "`."), loc);
+	}
+
+	auto value = parseStringLiteral(feeder.front.data, feeder.front.location);
+	feeder.popFront();
+
+	auto result = new StringLiteralExpression();
+	result.value = value;
+	return result;
+}
+
+private ValueExpression parseValueExpression(ref Feeder feeder) @safe pure {
+	alias Data = ValueExpression.Data;
+	alias Type = Token.Type;
+
+	static Data parseData(ref Feeder feeder) {
+		if (feeder.empty) {
+			throw new UnexpectedEOFException(feeder.front.location);
+		}
+
+		switch (feeder.front.type) {
+		case Type.identifier:
+			return Data(parseVariableExpression(feeder));
+
+		case Type.literalString:
+			return Data(parseLiteralExpression(feeder));
+
+		default:
+			break;
+		}
+
+		throw new UnexpectedTokenException(feeder.front, [
+			Type.identifier,
+			Type.literalString,
+		]);
+	}
+
+	auto data = parseData(feeder);
+
+	auto result = new ValueExpression();
+	result.data = data;
+	return result;
+}
+
+private VariableExpression parseVariableExpression(ref Feeder feeder) @safe pure {
+	alias Type = Token.Type;
+
+	if (feeder.empty) {
+		throw new UnexpectedEOFException(feeder.front.location);
+	}
+
+	auto selector = parseSelectorExpression(feeder);
+
+	auto result = new VariableExpression();
+	result.selector = selector;
+	return result;
 }
 
 // Statements
@@ -518,8 +1038,23 @@ abstract class Expression {
 	public abstract void toString(ref CodePrinter printer) const;
 }
 
+final class AppendExpression : BinaryExpression {
+@safe pure:
+
+	public this() {
+		super();
+	}
+
+	///
+	public override void toString(ref CodePrinter printer) const {
+		lhs.toString(printer);
+		printer.print(" ~= ");
+		rhs.toString(printer);
+	}
+}
+
 ///
-final class ArrayLiteralExpression : Expression {
+final class ArrayLiteralExpression : LiteralExpression {
 	public {
 		///
 		ValueExpression[] items;
@@ -544,14 +1079,7 @@ final class ArrayLiteralExpression : Expression {
 }
 
 ///
-final class AssignmentExpression : Expression {
-	public {
-		///
-		SelectorExpression lhs;
-		///
-		ValueExpression rhs;
-	}
-
+final class AssignmentExpression : BinaryExpression {
 @safe pure:
 
 	private this() {
@@ -563,6 +1091,22 @@ final class AssignmentExpression : Expression {
 		lhs.toString(printer);
 		printer.print(" = ");
 		rhs.toString(printer);
+	}
+}
+
+///
+abstract class BinaryExpression : Expression {
+	public {
+		///
+		SelectorExpression lhs;
+		///
+		ValueExpression rhs;
+	}
+
+@safe pure:
+
+	public this() {
+		super();
 	}
 }
 
@@ -628,7 +1172,7 @@ abstract class LiteralExpression : Expression {
 final class ObjectLiteralExpression : LiteralExpression {
 	public {
 		///
-		ValueExpression[string] members;
+		ValueExpression[string] properties;
 	}
 
 @safe pure:
@@ -640,7 +1184,7 @@ final class ObjectLiteralExpression : LiteralExpression {
 	///
 	public override void toString(ref CodePrinter printer) const {
 		printer.startBlock("{");
-		foreach (key, value; members) {
+		foreach (key, value; properties) {
 			printer.printIdentation();
 			printer.print(key, ": ");
 			value.toString(printer);
@@ -698,6 +1242,7 @@ final class ValueExpression : Expression {
 
 	///
 	public alias Data = TaggedUnion!(
+		CallExpression,
 		LiteralExpression,
 		VariableExpression,
 	);
@@ -709,12 +1254,15 @@ final class ValueExpression : Expression {
 
 @safe pure:
 
-	private this() {
+	public this() {
 		super();
 	}
 
 	///
 	public override void toString(ref CodePrinter printer) const {
+		if (data.has!CallExpression) {
+			return data.get!CallExpression.toString(printer);
+		}
 		if (data.has!LiteralExpression) {
 			return data.get!LiteralExpression.toString(printer);
 		}
