@@ -1024,7 +1024,8 @@ struct ExpressionStatement {
 abstract class Expression {
 @safe pure:
 
-	private this() {
+	///
+	public this() {
 	}
 
 	///
@@ -1062,7 +1063,7 @@ final class ArrayLiteralExpression : LiteralExpression {
 
 @safe pure:
 
-	private this() {
+	public this() {
 		super();
 	}
 
@@ -1082,7 +1083,7 @@ final class ArrayLiteralExpression : LiteralExpression {
 final class AssignmentExpression : BinaryExpression {
 @safe pure:
 
-	private this() {
+	public this() {
 		super();
 	}
 
@@ -1119,7 +1120,7 @@ final class BooleanLiteralExpression : LiteralExpression {
 
 @safe pure:
 
-	private this() {
+	public this() {
 		super();
 	}
 
@@ -1141,7 +1142,7 @@ final class CallExpression : Expression {
 
 @safe pure:
 
-	private this() {
+	public this() {
 		super();
 	}
 
@@ -1163,7 +1164,7 @@ final class CallExpression : Expression {
 abstract class LiteralExpression : Expression {
 @safe pure:
 
-	private this() {
+	public this() {
 		super();
 	}
 }
@@ -1177,7 +1178,7 @@ final class ObjectLiteralExpression : LiteralExpression {
 
 @safe pure:
 
-	private this() {
+	public this() {
 		super();
 	}
 
@@ -1203,7 +1204,7 @@ final class SelectorExpression : Expression {
 
 @safe pure:
 
-	private this() {
+	public this() {
 		super();
 	}
 
@@ -1227,7 +1228,7 @@ final class StringLiteralExpression : LiteralExpression {
 
 @safe pure:
 
-	private this() {
+	public this() {
 		super();
 	}
 
@@ -1283,7 +1284,7 @@ final class VariableExpression : Expression {
 
 @safe pure:
 
-	private this() {
+	public this() {
 		super();
 	}
 
