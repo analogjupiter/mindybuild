@@ -470,6 +470,7 @@ class ParserException : Exception {
 		Location location,
 		string file = __FILE__, size_t line = __LINE__
 	) @safe pure nothrow @nogc {
+		this.location = location;
 		super(message, file, line);
 	}
 }
