@@ -580,6 +580,8 @@ private Statement parseStatement(ref Feeder feeder) @safe pure {
 		throw new UnexpectedTokenException(feeder.front, [Type.semicolon]);
 	}
 
+	feeder.popFront();
+
 	return ExpressionStatement(expr);
 }
 
