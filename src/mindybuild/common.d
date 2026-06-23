@@ -166,7 +166,7 @@ template TaggedUnion(Types...) {
 		///
 		public this(T)(T value)
 		if (canHold!T) {
-			_storage.tupleof[indexOf!T] = value;
+			this.set(value);
 		}
 
 		public {
