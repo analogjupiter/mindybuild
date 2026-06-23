@@ -355,6 +355,7 @@ private struct Feeder {
 	///
 	public this(Lexer lexer) {
 		_lexer = lexer;
+		this.runSkip();
 	}
 
 	public {
@@ -375,15 +376,20 @@ private struct Feeder {
 
 		///
 		void popFront() {
+			_lexer.popFront();
+			this.runSkip();
+		}
+	}
+
+	private {
+		void runSkip() {
 			while (!_lexer.empty) {
 				if (!this.shallSkip()) {
 					return;
 				}
 			}
 		}
-	}
 
-	private {
 		bool shallSkip() {
 			pragma(inline, true);
 			// dfmt off
