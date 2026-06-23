@@ -45,7 +45,8 @@ struct Token {
 		opAppend = 'a',
 
 		identifier = 'i',
-		literalString = '"',
+		literalString = '`',
+		literalStringEscaped = '"',
 
 		eof = char.max,
 	}
@@ -227,7 +228,8 @@ struct Lexer {
 		}
 
 		Token lexLiteralString() {
-			ptrdiff_t scanForClosingDoubleQuote(str input) {
+			ptrdiff_t scanForClosingDoubleQuote(str input, out bool hasEscapeSequences) {
+				hasEscapeSequences = false;
 				bool prevWasBackslash = false;
 				foreach (idx, c; input) {
 					if (prevWasBackslash) {
@@ -240,6 +242,9 @@ struct Lexer {
 						}
 
 						prevWasBackslash = (c == '\\');
+						if (prevWasBackslash) {
+							hasEscapeSequences = true;
+						}
 					}
 				}
 				return -1;
@@ -259,9 +264,11 @@ struct Lexer {
 			}
 
 			if (_input[0] == '"') {
-				const idxEnd = scanForClosingDoubleQuote(_input[1 .. $]);
+				bool hasEscapeSequences;
+				const idxEnd = scanForClosingDoubleQuote(_input[1 .. $], hasEscapeSequences);
 				const length = (idxEnd < 0) ? _input.length : (1 + idxEnd + 1);
-				return this.makeToken(Type.literalString, length);
+				const stringType = (hasEscapeSequences) ? Type.literalStringEscaped : Type.literalString;
+				return this.makeToken(stringType, length);
 			}
 
 			if (_input[0] == '`') {
@@ -581,6 +588,7 @@ private Expression parseExpression(ref Feeder feeder) @safe pure {
 	case Type.braceSquarOpen:
 	case Type.braceCurlyOpen:
 	case Type.literalString:
+	case Type.literalStringEscaped:
 		return parseValueExpression(feeder);
 
 	case Type.identifier:
@@ -593,6 +601,7 @@ private Expression parseExpression(ref Feeder feeder) @safe pure {
 	throw new UnexpectedTokenException(feeder.front, [
 		Type.identifier,
 		Type.literalString,
+		Type.literalStringEscaped,
 		Type.braceSquarOpen,
 		Type.braceCurlyOpen,
 	]);
@@ -786,6 +795,7 @@ private LiteralExpression parseLiteralExpression(ref Feeder feeder) @safe pure {
 		return parseArrayLiteralExpression(feeder);
 
 	case Type.literalString:
+	case Type.literalStringEscaped:
 		return parseStringLiteralExpression(feeder);
 
 	default:
@@ -796,6 +806,7 @@ private LiteralExpression parseLiteralExpression(ref Feeder feeder) @safe pure {
 		Type.braceCurlyOpen,
 		Type.braceSquarOpen,
 		Type.literalString,
+		Type.literalStringEscaped,
 	]);
 }
 
@@ -872,65 +883,96 @@ private ObjectLiteralExpression parseObjectLiteralExpression(ref Feeder feeder) 
 }
 
 private StringLiteralExpression parseStringLiteralExpression(ref Feeder feeder) @safe pure {
-	assert(feeder.front.type == Token.Type.literalString);
+	assert(
+		(feeder.front.type == Token.Type.literalString) ||
+			(feeder.front.type == Token.Type.literalStringEscaped)
+	);
 
-	static str parseStringLiteral(str raw, Location loc) {
+	static str parseStringLiteral(Token token) {
 		import std.conv : text;
 
+		static char escapeSequenceToChar(char seq1, Location loc) {
+			switch (seq1) {
+			case '\'':
+			case '"':
+			case '?':
+			case '\\':
+				return seq1;
+			case '0':
+				return '\x00';
+			case 'a':
+				return '\x07';
+			case 'b':
+				return '\x08';
+			case 'f':
+				return '\x0C';
+			case 'n':
+				return '\x0A';
+			case 'r':
+				return '\x0D';
+			case 't':
+				return '\x09';
+			case 'v':
+				return '\x0B';
+			default:
+				break;
+			}
+
+			throw new ParserException("Invalid escape sequence `\\" ~ seq1 ~ "` encountered in string literal.", loc);
+		}
+
+		const raw = token.data;
+
 		if (raw.length == 0) {
-			throw new ParserException("Bad string literal.", loc);
+			throw new ParserException("Bad string literal.", token.location);
 		}
 
 		if (raw.length == 1) {
-			throw new ParserException("Unterminated string literal.", loc);
+			throw new ParserException("Unterminated string literal.", token.location);
 		}
 
-		if (raw[0] == '"') {
-			bool hasEscapeSequences = false;
-			foreach (c; raw[1 .. $]) {
-				if (c == '\\') {
-					hasEscapeSequences = true;
-					break;
+		if (raw[0] != raw[$ - 1]) {
+			throw new ParserException("Unsupported string literal.", token.location);
+		}
+
+		const trimmed = raw[1 .. ($ - 1)];
+
+		if (token.type == Token.Type.literalStringEscaped) {
+			size_t length = trimmed.length;
+			bool prevWasBackslash = false;
+			foreach (c; trimmed) {
+				if (prevWasBackslash) {
+					--length;
+					prevWasBackslash = false;
+					continue;
 				}
+				prevWasBackslash = (c == '\\');
 			}
 
-			if (!hasEscapeSequences) {
-				return raw[1 .. ($ - 1)];
-			}
-
-			// TODO: implement
-			assert(false, "Unfinished implementation.");
-
-			foreach (idx, c; raw[1 .. $]) {
-				if (c == '`') {
-					if (c != (1 + raw.length)) {
-						auto locJunk = loc;
-						locJunk.byteOffset += idx + 1;
-						throw new ParserException("Junk data after string literal.", locJunk);
+			auto result = new char[](length);
+			auto bufferToFill = result;
+			prevWasBackslash = false;
+			foreach (char c; trimmed) {
+				if (prevWasBackslash) {
+					prevWasBackslash = false;
+					c = escapeSequenceToChar(c, token.location);
+				}
+				else {
+					prevWasBackslash = (c == '\\');
+					if (prevWasBackslash) {
+						continue;
 					}
-					return raw[1 .. 1 + idx];
 				}
+
+				bufferToFill[0] = c;
+				bufferToFill = bufferToFill[1 .. $];
 			}
-			auto locUnterm = loc;
-			locUnterm.byteOffset += raw.length;
-			throw new ParserException("Unterminated string literal.", locUnterm);
 		}
 
-		if (raw[0] == '`') {
-			foreach (idx, c; raw[1 .. $]) {
-				if (c == '`') {
-					return raw[1 .. 1 + idx];
-				}
-			}
-			auto loc2 = loc;
-			loc2.byteOffset += raw.length;
-			throw new ParserException("Unterminated string literal.", loc2);
-		}
-
-		throw new ParserException(text("Unsupported type of string literal `", raw, "`."), loc);
+		return trimmed;
 	}
 
-	auto value = parseStringLiteral(feeder.front.data, feeder.front.location);
+	auto value = parseStringLiteral(feeder.front);
 	feeder.popFront();
 
 	auto result = new StringLiteralExpression();
@@ -952,6 +994,7 @@ private ValueExpression parseValueExpression(ref Feeder feeder) @safe pure {
 			return Data(parseVariableExpression(feeder));
 
 		case Type.literalString:
+		case Type.literalStringEscaped:
 			return Data(parseLiteralExpression(feeder));
 
 		default:
@@ -961,6 +1004,7 @@ private ValueExpression parseValueExpression(ref Feeder feeder) @safe pure {
 		throw new UnexpectedTokenException(feeder.front, [
 			Type.identifier,
 			Type.literalString,
+			Type.literalStringEscaped,
 		]);
 	}
 
