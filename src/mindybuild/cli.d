@@ -260,11 +260,11 @@ template runMindybuildCommandLineApp() {
 			}
 
 			try {
-				foreach(statement; Parser(sourceCode, file)) {
-					stdout.writeln(statement.toString());
+				foreach (statement; Parser(sourceCode, file)) {
+					stdout.write(statement.toString());
 				}
 			}
-			catch(Exception ex){
+			catch (Exception ex) {
 				stderr.writeln("Error: ", ex.msg);
 				return 1;
 			}
