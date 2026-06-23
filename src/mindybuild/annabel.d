@@ -999,6 +999,8 @@ private ValueExpression parseValueExpression(ref Feeder feeder) @safe pure {
 		case Type.identifier:
 			return Data(parseVariableExpression(feeder));
 
+		case Type.braceCurlyOpen:
+		case Type.braceSquarOpen:
 		case Type.literalString:
 		case Type.literalStringEscaped:
 			return Data(parseLiteralExpression(feeder));
@@ -1008,6 +1010,8 @@ private ValueExpression parseValueExpression(ref Feeder feeder) @safe pure {
 		}
 
 		throw new UnexpectedTokenException(feeder.front, [
+			Type.braceCurlyOpen,
+			Type.braceSquarOpen,
 			Type.identifier,
 			Type.literalString,
 			Type.literalStringEscaped,
