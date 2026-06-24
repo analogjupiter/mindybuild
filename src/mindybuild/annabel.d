@@ -77,7 +77,7 @@ struct Lexer {
 	///
 	public this(str input, str file = null) {
 		_input = input;
-		_loc = Location(0, file, input);
+		_loc = Location(file, 0, input);
 		this.loadFrontInitial();
 	}
 

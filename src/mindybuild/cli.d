@@ -264,6 +264,10 @@ template runMindybuildCommandLineApp() {
 					stdout.write(statement.toString());
 				}
 			}
+			catch (ParserException ex) {
+				stderr.writeln(ex.location.humanReadable, ": ", ex.msg);
+				return 1;
+			}
 			catch (Exception ex) {
 				stderr.writeln("Error: ", ex.msg);
 				return 1;

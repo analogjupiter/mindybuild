@@ -593,11 +593,83 @@ ptrdiff_t scanWhitespace(in str input) @safe pure nothrow @nogc {
 ///
 struct Location {
 	///
+	str file;
+
+	///
 	size_t byteOffset;
 
+	///
+	str sourceCode;
+
+	LocationHumanReadable humanReadable() const @safe pure {
+		return LocationHumanReadable.fromLocation(this);
+	}
+}
+
+///
+struct LocationHumanReadable {
 	///
 	str file;
 
 	///
-	str sourceCode;
+	size_t line;
+
+	///
+	size_t column;
+
+	///
+	static typeof(this) fromLocation(const Location location) @safe pure {
+		import std.uni;
+
+		size_t cntLine = 1;
+		size_t cntColumn = 1;
+
+		bool prevWasCR = false;
+
+		size_t offset = 0;
+
+		foreach (g; location.sourceCode.byGrapheme) {
+			offset += g.length;
+			if (offset >= location.byteOffset) {
+				return typeof(this)(location.file, cntLine, cntColumn);
+			}
+
+			if (g.length == 1) {
+				if (g[0] == '\x0A') {
+					if (prevWasCR) {
+						prevWasCR = false;
+						continue;
+					}
+
+					++cntLine;
+					cntColumn = 1;
+					continue;
+				}
+
+				if (g[0] == '\x0D') {
+					++cntLine;
+					cntColumn = 1;
+					prevWasCR = true;
+					continue;
+				}
+			}
+
+			if (g[] == "\u2028" || g[] == "\u2029") {
+				++cntLine;
+				cntColumn = 1;
+				continue;
+			}
+
+			prevWasCR = false;
+			++cntColumn;
+		}
+
+		return typeof(this)(location.file, cntLine, cntColumn);
+	}
+
+	string toString() const @safe pure nothrow {
+		import std.conv : text;
+
+		return text(file, "(", line, ",", column, ")");
+	}
 }
