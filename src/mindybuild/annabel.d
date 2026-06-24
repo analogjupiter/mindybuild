@@ -1061,7 +1061,10 @@ struct ExpressionStatement {
 		if (expression is null) {
 			return "\n";
 		}
-		return expression.toString();
+
+		auto printer = CodePrinter("\t", 0);
+		this.toString(printer);
+		return printer.toString();
 	}
 
 	///
