@@ -699,6 +699,7 @@ private CallExpression parseCallExpression(ref Feeder feeder, SelectorExpression
 
 	while (!feeder.empty) {
 		if (feeder.front.type == Type.braceParenClose) {
+			feeder.popFront();
 			if (result is null) {
 				result = new CallExpression();
 				result.functionName = functionName;
