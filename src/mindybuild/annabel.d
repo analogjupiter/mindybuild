@@ -897,6 +897,37 @@ private ObjectLiteralExpression parseObjectLiteralExpression(ref Feeder feeder) 
 	throw new UnexpectedEOFException(feeder.front.location);
 }
 
+private string charToEscapeSequence(const char c) @safe pure nothrow @nogc {
+	switch (c) {
+	case '\\':
+		return `\\`;
+	case '\'':
+		return `\'`;
+	case '"':
+		return `\"`;
+	case '\x00':
+		return `\0`;
+	case '\x07':
+		return `\a`;
+	case '\x08':
+		return `\b`;
+	case '\x0C':
+		return `\f`;
+	case '\x0A':
+		return `\n`;
+	case '\x0D':
+		return `\r`;
+	case '\x09':
+		return `\t`;
+	case '\x0B':
+		return `\v`;
+	default:
+		break;
+	}
+
+	return null;
+}
+
 private str parseStringLiteral(Token token) @safe pure {
 	import std.conv : text;
 
@@ -1282,7 +1313,8 @@ final class ObjectLiteralExpression : LiteralExpression {
 		foreach (key, value; properties) {
 			printer.printIdentation();
 			if (key.length != scanIdentifier(key)) {
-				printer.print("\"", key, "\": ");
+				StringLiteralExpression.printEscaped(printer, key);
+				printer.print(": ");
 			}
 			else {
 				printer.print(key, ": ");
@@ -1333,7 +1365,22 @@ final class StringLiteralExpression : LiteralExpression {
 
 	///
 	public override void toString(ref CodePrinter printer) const {
-		printer.print("\"", value, "\"");
+		return this.printEscaped(printer, value);
+	}
+
+	private static void printEscaped(ref CodePrinter printer, str value) {
+		printer.print("\"");
+		size_t from = 0;
+		foreach (idx, c; value) {
+			const escapeSeq = charToEscapeSequence(c);
+			if (escapeSeq !is null) {
+				printer.print(value[from .. idx]);
+				printer.print(escapeSeq);
+				from = idx + 1;
+			}
+		}
+		printer.print(value[from .. $]);
+		printer.print("\"");
 	}
 }
 
