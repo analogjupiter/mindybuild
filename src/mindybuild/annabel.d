@@ -475,7 +475,7 @@ class ParserException : Exception {
 	}
 }
 
-///Authors: 
+///
 final class DuplicateObjectPropertyNameException : ParserException {
 	public {
 		///
