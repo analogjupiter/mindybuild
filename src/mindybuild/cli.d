@@ -211,6 +211,9 @@ template runMindybuildCommandLineApp() {
 			}
 			catch (Exception ex) {
 				stderr.writeln(file, ": ", ex.msg);
+				debug {
+					stderr.writeExceptionOrigin(ex);
+				}
 				return 1;
 			}
 
@@ -266,14 +269,24 @@ template runMindybuildCommandLineApp() {
 			}
 			catch (ParserException ex) {
 				stderr.writeln(ex.location.humanReadable, ": ", ex.msg);
+				debug {
+					stderr.writeExceptionOrigin(ex);
+				}
 				return 1;
 			}
 			catch (Exception ex) {
 				stderr.writeln("Error: ", ex.msg);
+				debug {
+					stderr.writeExceptionOrigin(ex);
+				}
 				return 1;
 			}
 
 			return 0;
 		}
+	}
+
+	debug void writeExceptionOrigin(File target, Throwable ex) {
+		debug target.writeln("\tThrown from ", ex.file, "(", ex.line, ").\n", ex.info);
 	}
 }
