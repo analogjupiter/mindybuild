@@ -884,10 +884,10 @@ private ObjectLiteralExpression parseObjectLiteralExpression(ref Feeder feeder) 
 			return result;
 		}
 
-		if (feeder.front.type != Type.colon) {
+		if (feeder.front.type != Type.comma) {
 			throw new UnexpectedTokenException(feeder.front, [
 				Type.braceCurlyClose,
-				Type.colon,
+				Type.comma,
 			]);
 		}
 
