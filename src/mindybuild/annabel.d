@@ -1315,7 +1315,7 @@ final class StringLiteralExpression : LiteralExpression {
 
 	///
 	public override void toString(ref CodePrinter printer) const {
-		printer.print(value);
+		printer.print("\"", value, "\"");
 	}
 }
 
