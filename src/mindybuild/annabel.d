@@ -976,6 +976,8 @@ private str parseStringLiteral(Token token) @safe pure {
 			bufferToFill[0] = c;
 			bufferToFill = bufferToFill[1 .. $];
 		}
+
+		return result;
 	}
 	else {
 		assert(token.type == Token.Type.literalString);
