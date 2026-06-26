@@ -1274,9 +1274,17 @@ final class ObjectLiteralExpression : LiteralExpression {
 	///
 	public override void toString(ref CodePrinter printer) const {
 		printer.startBlock("{");
+		if (properties.length > 0) {
+			printer.print("\n");
+		}
 		foreach (key, value; properties) {
 			printer.printIdentation();
-			printer.print(key, ": ");
+			if (key.length != scanIdentifier(key)) {
+				printer.print("\"", key, "\": ");
+			}
+			else {
+				printer.print(key, ": ");
+			}
 			value.toString(printer);
 			printer.print(",\n");
 		}
