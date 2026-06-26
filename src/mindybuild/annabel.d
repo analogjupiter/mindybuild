@@ -1001,7 +1001,7 @@ private ValueExpression parseValueExpression(ref Feeder feeder) @safe pure {
 
 		switch (feeder.front.type) {
 		case Type.identifier:
-			return Data(parseVariableExpression(feeder));
+			return parseCallOrVariableExpression(feeder);
 
 		case Type.braceCurlyOpen:
 		case Type.braceSquarOpen:
@@ -1027,6 +1027,26 @@ private ValueExpression parseValueExpression(ref Feeder feeder) @safe pure {
 	auto result = new ValueExpression();
 	result.data = data;
 	return result;
+}
+
+private ValueExpression.Data parseCallOrVariableExpression(ref Feeder feeder) @safe pure {
+	alias Type = Token.Type;
+
+	if (feeder.empty) {
+		throw new UnexpectedEOFException(feeder.front.location);
+	}
+
+	auto selector = parseSelectorExpression(feeder);
+
+	if (feeder.empty || (feeder.front.type != Type.braceParenOpen)) {
+		auto variable = new VariableExpression();
+		variable.selector = selector;
+		return ValueExpression.Data(variable);
+	}
+
+	auto call = parseCallExpression(feeder, selector);
+
+	return ValueExpression.Data(call);
 }
 
 private VariableExpression parseVariableExpression(ref Feeder feeder) @safe pure {
