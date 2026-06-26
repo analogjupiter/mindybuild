@@ -837,7 +837,11 @@ private ObjectLiteralExpression parseObjectLiteralExpression(ref Feeder feeder) 
 			return result;
 		}
 
-		if (feeder.front.type != Type.identifier) {
+		if (
+			(feeder.front.type != Type.identifier) &&
+			(feeder.front.type != Type.literalString) &&
+			(feeder.front.type != Type.literalStringEscaped)
+			) {
 			throw new UnexpectedTokenException(feeder.front, [Type.identifier]);
 		}
 		Token key = feeder.front;
@@ -872,7 +876,8 @@ private ObjectLiteralExpression parseObjectLiteralExpression(ref Feeder feeder) 
 			}
 		}
 
-		result.properties[key.data] = value;
+		auto keyName = (key.type == Type.identifier) ? key.data : parseStringLiteral(key);
+		result.properties[keyName] = value;
 
 		if (feeder.front.type == Type.braceCurlyClose) {
 			feeder.popFront();
@@ -892,95 +897,98 @@ private ObjectLiteralExpression parseObjectLiteralExpression(ref Feeder feeder) 
 	throw new UnexpectedEOFException(feeder.front.location);
 }
 
+private str parseStringLiteral(Token token) @safe pure {
+	import std.conv : text;
+
+	static char escapeSequenceToChar(char seq1, Location loc) {
+		switch (seq1) {
+		case '\'':
+		case '"':
+		case '?':
+		case '\\':
+			return seq1;
+		case '0':
+			return '\x00';
+		case 'a':
+			return '\x07';
+		case 'b':
+			return '\x08';
+		case 'f':
+			return '\x0C';
+		case 'n':
+			return '\x0A';
+		case 'r':
+			return '\x0D';
+		case 't':
+			return '\x09';
+		case 'v':
+			return '\x0B';
+		default:
+			break;
+		}
+
+		throw new ParserException("Invalid escape sequence `\\" ~ seq1 ~ "` encountered in string literal.", loc);
+	}
+
+	const raw = token.data;
+
+	if (raw.length == 0) {
+		throw new ParserException("Bad string literal.", token.location);
+	}
+
+	if (raw.length == 1) {
+		throw new ParserException("Unterminated string literal.", token.location);
+	}
+
+	if (raw[0] != raw[$ - 1]) {
+		throw new ParserException("Unsupported string literal.", token.location);
+	}
+
+	const trimmed = raw[1 .. ($ - 1)];
+
+	if (token.type == Token.Type.literalStringEscaped) {
+		size_t length = trimmed.length;
+		bool prevWasBackslash = false;
+		foreach (c; trimmed) {
+			if (prevWasBackslash) {
+				--length;
+				prevWasBackslash = false;
+				continue;
+			}
+			prevWasBackslash = (c == '\\');
+		}
+
+		auto result = new char[](length);
+		auto bufferToFill = result;
+		prevWasBackslash = false;
+		foreach (char c; trimmed) {
+			if (prevWasBackslash) {
+				prevWasBackslash = false;
+				c = escapeSequenceToChar(c, token.location);
+			}
+			else {
+				prevWasBackslash = (c == '\\');
+				if (prevWasBackslash) {
+					continue;
+				}
+			}
+
+			bufferToFill[0] = c;
+			bufferToFill = bufferToFill[1 .. $];
+		}
+	}
+	else {
+		assert(token.type == Token.Type.literalString);
+	}
+
+	return trimmed;
+}
+
 private StringLiteralExpression parseStringLiteralExpression(ref Feeder feeder) @safe pure {
 	assert(
 		(feeder.front.type == Token.Type.literalString) ||
 			(feeder.front.type == Token.Type.literalStringEscaped)
 	);
-
-	static str parseStringLiteral(Token token) {
-		import std.conv : text;
-
-		static char escapeSequenceToChar(char seq1, Location loc) {
-			switch (seq1) {
-			case '\'':
-			case '"':
-			case '?':
-			case '\\':
-				return seq1;
-			case '0':
-				return '\x00';
-			case 'a':
-				return '\x07';
-			case 'b':
-				return '\x08';
-			case 'f':
-				return '\x0C';
-			case 'n':
-				return '\x0A';
-			case 'r':
-				return '\x0D';
-			case 't':
-				return '\x09';
-			case 'v':
-				return '\x0B';
-			default:
-				break;
-			}
-
-			throw new ParserException("Invalid escape sequence `\\" ~ seq1 ~ "` encountered in string literal.", loc);
-		}
-
-		const raw = token.data;
-
-		if (raw.length == 0) {
-			throw new ParserException("Bad string literal.", token.location);
-		}
-
-		if (raw.length == 1) {
-			throw new ParserException("Unterminated string literal.", token.location);
-		}
-
-		if (raw[0] != raw[$ - 1]) {
-			throw new ParserException("Unsupported string literal.", token.location);
-		}
-
-		const trimmed = raw[1 .. ($ - 1)];
-
-		if (token.type == Token.Type.literalStringEscaped) {
-			size_t length = trimmed.length;
-			bool prevWasBackslash = false;
-			foreach (c; trimmed) {
-				if (prevWasBackslash) {
-					--length;
-					prevWasBackslash = false;
-					continue;
-				}
-				prevWasBackslash = (c == '\\');
-			}
-
-			auto result = new char[](length);
-			auto bufferToFill = result;
-			prevWasBackslash = false;
-			foreach (char c; trimmed) {
-				if (prevWasBackslash) {
-					prevWasBackslash = false;
-					c = escapeSequenceToChar(c, token.location);
-				}
-				else {
-					prevWasBackslash = (c == '\\');
-					if (prevWasBackslash) {
-						continue;
-					}
-				}
-
-				bufferToFill[0] = c;
-				bufferToFill = bufferToFill[1 .. $];
-			}
-		}
-
-		return trimmed;
-	}
 
 	auto value = parseStringLiteral(feeder.front);
 	feeder.popFront();
