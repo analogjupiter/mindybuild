@@ -40,7 +40,7 @@ struct Token {
 		braceCurlyOpen = '{',
 		braceCurlyClose = '}',
 
-		opConcat = '~',
+		opConcat = '+',
 		opAssign = '=',
 		opAppend = 'a',
 
@@ -168,6 +168,9 @@ struct Lexer {
 			case '}':
 				return this.makeToken(Type.braceCurlyClose, 1);
 
+			case '+':
+				return this.lexPlus();
+
 			case '=':
 				return this.makeToken(Type.opAssign, 1);
 
@@ -185,9 +188,6 @@ struct Lexer {
 
 			case ';':
 				return this.makeToken(Type.semicolon, 1);
-
-			case '~':
-				return this.lexTilde();
 
 			case '\x01': .. case '\x08':
 			case '\x0E': .. case '\x1F':
@@ -312,7 +312,7 @@ struct Lexer {
 			return this.makeToken(Type.comment, length);
 		}
 
-		Token lexTilde() {
+		Token lexPlus() {
 			if (_input.length > 1 && _input[1] == '=') {
 				return this.makeToken(Type.opAppend, 2);
 			}
@@ -1170,7 +1170,7 @@ final class AppendExpression : BinaryExpression {
 	///
 	public override void toString(ref CodePrinter printer) const {
 		lhs.toString(printer);
-		printer.print(" ~= ");
+		printer.print(" += ");
 		rhs.toString(printer);
 	}
 }
