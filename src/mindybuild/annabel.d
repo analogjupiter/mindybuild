@@ -641,7 +641,6 @@ private ArrayLiteralExpression parseArrayLiteralExpression(ref Feeder feeder) @s
 		}
 
 		auto item = parseValueExpression(feeder);
-		feeder.popFront();
 
 		if (feeder.empty) {
 			throw new UnexpectedEOFException(feeder.front.location);
