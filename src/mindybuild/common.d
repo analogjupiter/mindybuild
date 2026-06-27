@@ -78,17 +78,26 @@ struct CodePrinter {
 		/++
 			Prints `prefix`, then advances identation by one.
 		 +/
-		void startBlock(string prefix) {
-			this.printLine(prefix);
+		void startBlock(string prefix, bool hasChildren) {
+			this.print(prefix);
+			if (hasChildren) {
+				this.print("\n");
+			}
+
 			++_indent;
 		}
 
 		/++
 			Retrogresses indentation by one, then prints `suffix`.
 		 +/
-		void endBlock(string suffix) {
+		void endBlock(string suffix, bool hasChildren) {
 			--_indent;
-			this.printLine(suffix);
+
+			if (hasChildren) {
+				this.print("\n");
+				this.printIdentation();
+			}
+			this.print(suffix);
 		}
 
 		/++

@@ -1190,16 +1190,14 @@ final class ArrayLiteralExpression : LiteralExpression {
 
 	///
 	public override void toString(ref CodePrinter printer) const {
-		printer.startBlock("[");
-		if (items.length > 0) {
-			printer.print("\n");
-		}
+		const hasChildren = (items.length > 0);
+		printer.startBlock("[", hasChildren);
 		foreach (item; items) {
 			printer.printIdentation();
 			item.toString(printer);
 			printer.print(",\n");
 		}
-		printer.endBlock("]");
+		printer.endBlock("]", hasChildren);
 	}
 }
 
@@ -1308,10 +1306,8 @@ final class ObjectLiteralExpression : LiteralExpression {
 
 	///
 	public override void toString(ref CodePrinter printer) const {
-		printer.startBlock("{");
-		if (properties.length > 0) {
-			printer.print("\n");
-		}
+		const hasChildren = (properties.length > 0);
+		printer.startBlock("{", hasChildren);
 		foreach (key, value; properties) {
 			printer.printIdentation();
 			if (key.length != scanIdentifier(key)) {
@@ -1324,7 +1320,7 @@ final class ObjectLiteralExpression : LiteralExpression {
 			value.toString(printer);
 			printer.print(",\n");
 		}
-		printer.endBlock("}");
+		printer.endBlock("}", hasChildren);
 	}
 }
 
