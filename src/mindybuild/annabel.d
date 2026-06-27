@@ -1191,6 +1191,9 @@ final class ArrayLiteralExpression : LiteralExpression {
 	///
 	public override void toString(ref CodePrinter printer) const {
 		printer.startBlock("[");
+		if (items.length > 0) {
+			printer.print("\n");
+		}
 		foreach (item; items) {
 			printer.printIdentation();
 			item.toString(printer);
