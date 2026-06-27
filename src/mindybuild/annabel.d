@@ -1143,6 +1143,12 @@ struct ExpressionStatement {
 
 ///
 abstract class Expression {
+
+	public {
+		///
+		Location location;
+	}
+
 @safe pure:
 
 	///
