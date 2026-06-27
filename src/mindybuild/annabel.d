@@ -1150,6 +1150,11 @@ abstract class Expression {
 	}
 
 	///
+	public this(Location location) {
+		this.location = location;
+	}
+
+	///
 	public final override string toString() const {
 		auto printer = CodePrinter("\t", 0);
 		this.toString(printer);
@@ -1173,6 +1178,9 @@ final class AppendExpression : BinaryExpression {
 		printer.print(" += ");
 		rhs.toString(printer);
 	}
+
+	///
+	alias toString = typeof(super).toString;
 }
 
 ///
@@ -1199,6 +1207,9 @@ final class ArrayLiteralExpression : LiteralExpression {
 		}
 		printer.endBlock("]", hasChildren);
 	}
+
+	///
+	alias toString = typeof(super).toString;
 }
 
 ///
@@ -1215,6 +1226,9 @@ final class AssignmentExpression : BinaryExpression {
 		printer.print(" = ");
 		rhs.toString(printer);
 	}
+
+	///
+	alias toString = typeof(super).toString;
 }
 
 ///
@@ -1231,6 +1245,9 @@ abstract class BinaryExpression : Expression {
 	public this() {
 		super();
 	}
+
+	///
+	alias toString = typeof(super).toString;
 }
 
 ///
@@ -1251,6 +1268,9 @@ final class BooleanLiteralExpression : LiteralExpression {
 		const printable = (value) ? "true" : "false";
 		printer.print(printable);
 	}
+
+	///
+	alias toString = typeof(super).toString;
 }
 
 ///
@@ -1280,6 +1300,9 @@ final class CallExpression : Expression {
 		}
 		printer.print(")");
 	}
+
+	///
+	alias toString = typeof(super).toString;
 }
 
 ///
@@ -1322,6 +1345,9 @@ final class ObjectLiteralExpression : LiteralExpression {
 		}
 		printer.endBlock("}", hasChildren);
 	}
+
+	///
+	alias toString = typeof(super).toString;
 }
 
 ///
@@ -1346,6 +1372,9 @@ final class SelectorExpression : Expression {
 			printer.print(identifier);
 		}
 	}
+
+	///
+	alias toString = typeof(super).toString;
 }
 
 ///
@@ -1365,6 +1394,9 @@ final class StringLiteralExpression : LiteralExpression {
 	public override void toString(ref CodePrinter printer) const {
 		return this.printEscaped(printer, value);
 	}
+
+	///
+	alias toString = typeof(super).toString;
 
 	private static void printEscaped(ref CodePrinter printer, str value) {
 		printer.print("\"");
@@ -1417,6 +1449,9 @@ final class ValueExpression : Expression {
 
 		assert(false, "ICE: Missing handler for a union type of `ValueExpression`.");
 	}
+
+	///
+	alias toString = typeof(super).toString;
 }
 
 ///
@@ -1436,4 +1471,7 @@ final class VariableExpression : Expression {
 	public override void toString(ref CodePrinter printer) const {
 		selector.toString(printer);
 	}
+
+	///
+	alias toString = typeof(super).toString;
 }
